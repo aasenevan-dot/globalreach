@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Trash2, BookmarkOpen, Lock, Globe } from "lucide-react";
+import { Save, Trash2, Bookmark, Lock, Globe } from "lucide-react";
 
 export interface FilterConfig {
   searchText?: string;
@@ -133,7 +133,7 @@ export function SavedFilterMenu({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gap-2" disabled={disabled}>
-            <BookmarkOpen className="h-3.5 w-3.5" />
+            <Bookmark className="h-3.5 w-3.5" />
             Filters
           </Button>
         </DropdownMenuTrigger>

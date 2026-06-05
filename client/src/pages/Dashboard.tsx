@@ -8,6 +8,7 @@ import { localTimeIn, tzAbbrev, COUNTRY_FLAG, flagForLang, langName, STATUS_META
 import { scoreLead, scoreLabel } from "@/lib/scoring";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonCard } from "@/components/SkeletonCard";
 import {
   Users, Globe, Languages, Clock, Send, TrendingUp, MailCheck, Reply,
   HardHat, Home, Wallet, CheckCircle2, ShieldCheck, MapPin,
@@ -38,8 +39,14 @@ export default function Dashboard() {
   if (isConsumer) {
     if (l3) {
       return (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24" />)}
+        <div className="space-y-6">
+          <div>
+            <Skeleton className="h-7 w-48 mb-2" />
+            <Skeleton className="h-4 w-72" />
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+          </div>
         </div>
       );
     }
@@ -48,8 +55,18 @@ export default function Dashboard() {
 
   if (l1 || l2) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24" />)}
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-7 w-48 mb-2" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+        <div className="grid lg:grid-cols-3 gap-6">
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
       </div>
     );
   }

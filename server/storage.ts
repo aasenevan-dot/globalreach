@@ -284,6 +284,12 @@ export interface IStorage {
   getWebhookDeliveries(webhookId: number): Promise<WebhookDelivery[]>;
   createWebhookDelivery(d: InsertWebhookDelivery): Promise<WebhookDelivery>;
   getRecentWebhookDeliveries(limit: number): Promise<WebhookDelivery[]>;
+
+  getSavedFilters(): Promise<SavedFilter[]>;
+  getSavedFilter(id: number): Promise<SavedFilter | undefined>;
+  createSavedFilter(f: InsertSavedFilter): Promise<SavedFilter>;
+  updateSavedFilter(id: number, patch: Partial<InsertSavedFilter>): Promise<SavedFilter | undefined>;
+  deleteSavedFilter(id: number): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {

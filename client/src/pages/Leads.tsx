@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonLoader } from "@/components/SkeletonLoader";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { AddLeadDialog } from "@/components/AddLeadDialog";
@@ -162,7 +163,15 @@ export default function Leads() {
   }
 
   if (isLoading) {
-    return <div className="space-y-3">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-16" />)}</div>;
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-7 w-48 mb-2" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <SkeletonLoader count={6} variant="table-row" />
+      </div>
+    );
   }
 
   const colCount = isInternational ? 6 : 4; // checkbox + contact + company + status (+ market + time)

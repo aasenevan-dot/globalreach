@@ -8,6 +8,7 @@ import {
 } from "@/lib/i18n-data";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonCard } from "@/components/SkeletonCard";
 import {
   TrendingUp, Globe, Languages, Send, Reply, Target, Mail, Phone,
   Smartphone, MessageCircle, Linkedin, Clock, Handshake, DollarSign, Trophy,
@@ -45,7 +46,21 @@ export default function Analytics() {
   const { data: automations } = useQuery<Automation[]>({ queryKey: ["/api/automations"] });
 
   if (isLoading) {
-    return <div className="space-y-4"><Skeleton className="h-24" /><Skeleton className="h-72" /></div>;
+    return (
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-7 w-48 mb-2" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+        <div className="grid lg:grid-cols-2 gap-6">
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      </div>
+    );
   }
 
   // ===== Consumer (B2C) analytics: homeowner jobs + referral-source ROI =====

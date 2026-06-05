@@ -35,37 +35,45 @@ export async function registerRoutes(
     res.json(lead);
   });
   app.post("/api/leads", async (req, res) => {
-    const parsed = insertLeadSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    res.json(await storage.createLead(parsed.data));
+    try {
+      const parsed = insertLeadSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      res.json(await storage.createLead(parsed.data));
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create lead" }); }
   });
   // Bulk import: accepts { leads: InsertLead[] }, validates each, inserts valid rows.
   app.post("/api/leads/bulk", async (req, res) => {
-    const rows = Array.isArray(req.body?.leads) ? req.body.leads : [];
-    const valid: any[] = [];
-    const errors: { row: number; message: string }[] = [];
-    rows.forEach((r: unknown, i: number) => {
-      const parsed = insertLeadSchema.safeParse(r);
-      if (parsed.success) valid.push(parsed.data);
-      else errors.push({ row: i, message: "Invalid row" });
-    });
-    const created = await storage.createLeads(valid);
-    res.json({ created: created.length, skipped: errors.length, errors });
+    try {
+      const rows = Array.isArray(req.body?.leads) ? req.body.leads : [];
+      const valid: any[] = [];
+      const errors: { row: number; message: string }[] = [];
+      rows.forEach((r: unknown, i: number) => {
+        const parsed = insertLeadSchema.safeParse(r);
+        if (parsed.success) valid.push(parsed.data);
+        else errors.push({ row: i, message: "Invalid row" });
+      });
+      const created = await storage.createLeads(valid);
+      res.json({ created: created.length, skipped: errors.length, errors });
+    } catch (e: any) { res.status(500).json({ error: e.message || "Bulk import failed" }); }
   });
   // Bulk status update: { ids: number[], status: string }
   app.post("/api/leads/bulk-status", async (req, res) => {
-    const ids: number[] = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter((n: number) => Number.isFinite(n)) : [];
-    const status = typeof req.body?.status === "string" ? req.body.status : "";
-    const ALLOWED = ["new", "contacted", "engaged", "meeting", "won", "lost"];
-    if (!ALLOWED.includes(status)) return res.status(400).json({ error: "Invalid status" });
-    const updated = await storage.updateLeadsStatus(ids, status);
-    res.json({ updated });
+    try {
+      const ids: number[] = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter((n: number) => Number.isFinite(n)) : [];
+      const status = typeof req.body?.status === "string" ? req.body.status : "";
+      const ALLOWED = ["new", "contacted", "engaged", "meeting", "won", "lost"];
+      if (!ALLOWED.includes(status)) return res.status(400).json({ error: "Invalid status" });
+      const updated = await storage.updateLeadsStatus(ids, status);
+      res.json({ updated });
+    } catch (e: any) { res.status(500).json({ error: e.message || "Bulk status update failed" }); }
   });
   // Bulk delete: { ids: number[] }
   app.post("/api/leads/bulk-delete", async (req, res) => {
-    const ids: number[] = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter((n: number) => Number.isFinite(n)) : [];
-    const deleted = await storage.deleteLeads(ids);
-    res.json({ deleted });
+    try {
+      const ids: number[] = Array.isArray(req.body?.ids) ? req.body.ids.map(Number).filter((n: number) => Number.isFinite(n)) : [];
+      const deleted = await storage.deleteLeads(ids);
+      res.json({ deleted });
+    } catch (e: any) { res.status(500).json({ error: e.message || "Bulk delete failed" }); }
   });
   app.patch("/api/leads/:id", async (req, res) => {
     const parsed = insertLeadSchema.partial().safeParse(req.body);
@@ -91,9 +99,11 @@ export async function registerRoutes(
     res.json({ ...c, steps: campaignSteps });
   });
   app.post("/api/campaigns", async (req, res) => {
-    const parsed = insertCampaignSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    res.json(await storage.createCampaign(parsed.data));
+    try {
+      const parsed = insertCampaignSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      res.json(await storage.createCampaign(parsed.data));
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create campaign" }); }
   });
   app.patch("/api/campaigns/:id", async (req, res) => {
     const parsed = insertCampaignSchema.partial().safeParse(req.body);
@@ -103,9 +113,11 @@ export async function registerRoutes(
     res.json(updated);
   });
   app.post("/api/campaigns/:id/duplicate", async (req, res) => {
-    const copy = await storage.duplicateCampaign(Number(req.params.id));
-    if (!copy) return res.status(404).json({ error: "Not found" });
-    res.json(copy);
+    try {
+      const copy = await storage.duplicateCampaign(Number(req.params.id));
+      if (!copy) return res.status(404).json({ error: "Not found" });
+      res.json(copy);
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to duplicate campaign" }); }
   });
   app.delete("/api/campaigns/:id", async (req, res) => {
     const ok = await storage.deleteCampaign(Number(req.params.id));
@@ -116,36 +128,38 @@ export async function registerRoutes(
   // ---- Bulk Operations ----
   // Bulk enroll leads in a campaign
   app.post("/api/campaigns/:id/bulk-enroll", async (req, res) => {
-    const campaignId = Number(req.params.id);
-    const leadIds = Array.isArray(req.body?.leadIds)
-      ? req.body.leadIds.map(Number).filter((n: number) => Number.isFinite(n))
-      : [];
+    try {
+      const campaignId = Number(req.params.id);
+      const leadIds = Array.isArray(req.body?.leadIds)
+        ? req.body.leadIds.map(Number).filter((n: number) => Number.isFinite(n))
+        : [];
 
-    if (leadIds.length === 0) {
-      return res.status(400).json({ error: "No leads specified" });
-    }
-
-    const campaign = await storage.getCampaign(campaignId);
-    if (!campaign) {
-      return res.status(404).json({ error: "Campaign not found" });
-    }
-
-    const { bulkEnrollLeadsInCampaign } = await import("./lib/bulk-ops");
-
-    const result = await bulkEnrollLeadsInCampaign(leadIds, campaignId);
-
-    // Fire webhooks for each enrolled lead
-    if (result.enrolled > 0) {
-      for (const leadId of leadIds.slice(0, result.enrolled)) {
-        fireWebhookEvent("campaign.lead_enrolled", {
-          leadId,
-          campaignId,
-          timestamp: new Date().toISOString(),
-        }).catch(() => {});
+      if (leadIds.length === 0) {
+        return res.status(400).json({ error: "No leads specified" });
       }
-    }
 
-    res.json(result);
+      const campaign = await storage.getCampaign(campaignId);
+      if (!campaign) {
+        return res.status(404).json({ error: "Campaign not found" });
+      }
+
+      const { bulkEnrollLeadsInCampaign } = await import("./lib/bulk-ops");
+
+      const result = await bulkEnrollLeadsInCampaign(leadIds, campaignId);
+
+      // Fire webhooks for each enrolled lead
+      if (result.enrolled > 0) {
+        for (const leadId of leadIds.slice(0, result.enrolled)) {
+          fireWebhookEvent("campaign.lead_enrolled", {
+            leadId,
+            campaignId,
+            timestamp: new Date().toISOString(),
+          }).catch(() => {});
+        }
+      }
+
+      res.json(result);
+    } catch (e: any) { res.status(500).json({ error: e.message || "Bulk enroll failed" }); }
   });
 
   // Bulk send one-off emails
