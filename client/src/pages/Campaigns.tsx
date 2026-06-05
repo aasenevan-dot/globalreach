@@ -3,6 +3,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMode } from "@/lib/mode";
 import type { Campaign, Step } from "@shared/schema";
+import { EmptyState } from "@/components/EmptyState";
 import {
   flagForLang, langName, COUNTRY_FLAG, CHANNELS, LOCAL_CHANNELS, INTL_CHANNELS,
 } from "@/lib/i18n-data";
@@ -564,9 +565,11 @@ export default function Campaigns() {
           );
         })}
         {shown.length === 0 && (
-          <Card className="p-8 text-center text-muted-foreground text-sm">
-            No campaigns in this mode yet.
-          </Card>
+          <EmptyState
+            icon={<Send className="h-10 w-10" />}
+            title="No campaigns"
+            description="Create your first outreach campaign"
+          />
         )}
       </div>
 

@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMode } from "@/lib/mode";
 import { useAudience } from "@/lib/audience";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import type { Lead, Campaign, Message, Job, Reminder } from "@shared/schema";
+import { EmptyState } from "@/components/EmptyState";
 import { localTimeIn, tzAbbrev, COUNTRY_FLAG, flagForLang, langName, STATUS_META, JOB_STAGES, JOB_STAGE_META, formatUSD } from "@/lib/i18n-data";
 import { scoreLead, scoreLabel } from "@/lib/scoring";
 import { Card } from "@/components/ui/card";
@@ -53,11 +54,35 @@ export default function Dashboard() {
     );
   }
 
+  const [, navigate] = useLocation();
   const allLeads = leads ?? [];
   const domestic = allLeads.filter((l) => l.country === "United States");
   const shown = isInternational ? allLeads : domestic;
   const activeCampaigns = (campaigns ?? []).filter((c) => c.status === "active");
   const replies = (messages ?? []).filter((m) => m.status === "replied").length;
+
+  if (shown.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-display font-bold tracking-tight">
+            {isInternational ? "Global Pipeline" : "Pipeline Overview"}
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {isInternational
+              ? "Your worldwide B2B engagement across markets, languages and channels."
+              : "Your domestic B2B pipeline at a glance."}
+          </p>
+        </div>
+        <EmptyState
+          icon={<Users className="h-10 w-10" />}
+          title="No leads yet"
+          description="Add your first lead or load demo data to get started"
+          action={{ label: "Find Leads", onClick: () => navigate("/find") }}
+        />
+      </div>
+    );
+  }
 
   const countries = new Set(shown.map((l) => l.country)).size;
   const languages = new Set(shown.map((l) => l.language)).size;

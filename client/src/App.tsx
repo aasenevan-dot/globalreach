@@ -10,6 +10,7 @@ import { AudienceProvider } from "@/lib/audience";
 import { ThemeProvider } from "@/lib/theme";
 import { AppShell } from "@/components/AppShell";
 import { SearchPalette } from "@/components/SearchPalette";
+import { QuickStartModal } from "@/components/QuickStartModal";
 import { AuthGate } from "@/components/AuthGate";
 import Dashboard from "@/pages/Dashboard";
 import Leads from "@/pages/Leads";
@@ -59,6 +60,7 @@ function AppRouter() {
   return (
     <AppShell onOpenSearch={openSearch}>
       <SearchPalette open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <QuickStartModal />
       <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/find" component={FindLeads} />
