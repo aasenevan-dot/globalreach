@@ -108,10 +108,14 @@ function FormBuilder({ form, onClose }: { form?: Form; onClose: () => void }) {
   ]);
   const dragRef = useRef<number | null>(null);
   const [shareUrl, setShareUrl] = useState("");
+  const [saveAttempted, setSaveAttempted] = useState(false);
+
+  const nameError = saveAttempted && !name.trim() ? "This field is required" : "";
+  const fieldsError = saveAttempted && fields.length === 0 ? "Add at least one field to your form" : "";
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const payload = { name: name || "Untitled Form", fields: JSON.stringify(fields), createdAt: new Date().toISOString() };
+      const payload = { name: name.trim(), fields: JSON.stringify(fields), createdAt: new Date().toISOString() };
       const url = form ? `/api/forms/${form.id}` : "/api/forms";
       const method = form ? "PATCH" : "POST";
       const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -164,19 +168,22 @@ function FormBuilder({ form, onClose }: { form?: Form; onClose: () => void }) {
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={onClose}><ArrowLeft className="h-4 w-4" /></Button>
-        <Input
-          value={name}
-          onChange={e => setName(e.target.value)}
-          placeholder="Form name…"
-          className="text-lg font-semibold h-10 border-none shadow-none px-0 focus-visible:ring-0 max-w-xs"
-        />
+        <div className="max-w-xs">
+          <Input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Form name…"
+            className={`text-lg font-semibold h-10 border-none shadow-none px-0 focus-visible:ring-0 ${nameError ? "border-b-2 !border-red-500" : ""}`}
+          />
+          {nameError && <p className="text-xs text-red-500 mt-0.5">{nameError}</p>}
+        </div>
         <div className="ml-auto flex items-center gap-2">
           {form && (
             <Button variant="outline" size="sm" onClick={copyEmbedCode} className="gap-2">
               <Copy className="h-3.5 w-3.5" /> Embed
             </Button>
           )}
-          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="gap-2">
+          <Button onClick={() => { setSaveAttempted(true); if (name.trim() && fields.length > 0) saveMutation.mutate(); }} disabled={saveMutation.isPending} className="gap-2">
             <Save className="h-3.5 w-3.5" /> {saveMutation.isPending ? "Saving…" : "Save Form"}
           </Button>
         </div>
@@ -246,7 +253,7 @@ function FormBuilder({ form, onClose }: { form?: Form; onClose: () => void }) {
           ))}
 
           {/* Add field buttons */}
-          <div className="bg-muted/30 border border-dashed border-border rounded-lg p-3">
+          <div className={`bg-muted/30 border border-dashed rounded-lg p-3 ${fieldsError ? "border-red-500" : "border-border"}`}>
             <p className="text-xs text-muted-foreground mb-2 font-medium">Add field</p>
             <div className="flex flex-wrap gap-1.5">
               {FIELD_TYPES.map(ft => {
@@ -262,6 +269,7 @@ function FormBuilder({ form, onClose }: { form?: Form; onClose: () => void }) {
                 );
               })}
             </div>
+            {fieldsError && <p className="text-xs text-red-500 mt-2">{fieldsError}</p>}
           </div>
         </div>
 

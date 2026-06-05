@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMode } from "@/lib/mode";
@@ -43,6 +43,8 @@ export default function Leads() {
   const [selectedState, setSelectedState] = useState<string | null>(null); // FIPS id of a clicked state on the map
   const [selectedLead, setSelectedLead] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const ROWS_PER_PAGE = 50;
+  const [visibleCount, setVisibleCount] = useState(ROWS_PER_PAGE);
 
   const all = leads ?? [];
   // Local mode only ever shows domestic contacts.
@@ -68,6 +70,16 @@ export default function Leads() {
     const matchesRegion = region === "all" || l.state === region;
     return matchesQ && matchesCountry && matchesLang && matchesRegion;
   }), [base, q, country, language, region]);
+
+  // Reset visible row count when filters change so the user starts from the top.
+  const visibleRows = useMemo(() => {
+    setVisibleCount(ROWS_PER_PAGE);
+    return filtered;
+  }, [filtered]);
+
+  const displayedRows = visibleRows.slice(0, visibleCount);
+  const hasMore = visibleCount < filtered.length;
+  const loadMore = useCallback(() => setVisibleCount((c) => c + ROWS_PER_PAGE), []);
 
   // Territory grouping: bucket filtered leads by metro (Local) or country (Intl), sorted by size.
   const territories = useMemo(() => {
@@ -312,7 +324,7 @@ export default function Leads() {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((l) => {
+              {displayedRows.map((l) => {
                 const t = isInternational ? localTimeIn(l.timezone) : null;
                 const checked = selectedIds.has(l.id);
                 return (
@@ -398,6 +410,16 @@ export default function Leads() {
         </div>
         {filtered.length === 0 && (
           <div className="p-8 text-center text-muted-foreground text-sm">No leads match your filters.</div>
+        )}
+        {filtered.length > 0 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border text-sm text-muted-foreground">
+            <span>Showing {displayedRows.length} of {filtered.length} leads</span>
+            {hasMore && (
+              <Button variant="outline" size="sm" onClick={loadMore} data-testid="button-load-more">
+                Load more
+              </Button>
+            )}
+          </div>
         )}
       </Card>
       )}

@@ -83,6 +83,9 @@ export function NewCampaignDialog() {
     onError: () => toast({ title: "Couldn't create campaign", variant: "destructive" }),
   });
 
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const nameError = touched.name && !name.trim() ? "This field is required" : "";
+  const channelsError = touched.channels && channels.length === 0 ? "Select at least one channel" : "";
   const valid = name.trim() && channels.length > 0;
 
   return (
@@ -99,7 +102,8 @@ export function NewCampaignDialog() {
         <div className="space-y-5 py-2">
           <div className="space-y-1.5">
             <Label htmlFor="cmp-name">Campaign name *</Label>
-            <Input id="cmp-name" data-testid="input-campaign-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="US Mid-Market Outbound Q3" />
+            <Input id="cmp-name" data-testid="input-campaign-name" value={name} onChange={(e) => setName(e.target.value)} onBlur={() => setTouched((t) => ({ ...t, name: true }))} placeholder="US Mid-Market Outbound Q3" className={nameError ? "border-red-500 focus-visible:ring-red-500" : ""} />
+            {nameError && <p className="text-xs text-red-500 mt-1">{nameError}</p>}
           </div>
 
           <div className="space-y-2">
@@ -121,6 +125,7 @@ export function NewCampaignDialog() {
                 );
               })}
             </div>
+            {channelsError && <p className="text-xs text-red-500 mt-1">{channelsError}</p>}
           </div>
 
           {isInternational && (
@@ -197,7 +202,7 @@ export function NewCampaignDialog() {
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button data-testid="button-save-campaign" disabled={!valid || create.isPending} onClick={() => create.mutate()}>
+          <Button data-testid="button-save-campaign" disabled={!valid || create.isPending} onClick={() => { setTouched({ name: true, channels: true }); if (valid) create.mutate(); }}>
             {create.isPending ? "Creating…" : "Create campaign"}
           </Button>
         </DialogFooter>
