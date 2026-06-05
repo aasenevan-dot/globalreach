@@ -106,8 +106,8 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+    <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Search">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
       <div className="relative mx-auto mt-[15vh] w-full max-w-lg px-4">
         <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
           {/* Search input */}
@@ -120,13 +120,17 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
               onChange={e => setQuery(e.target.value)}
               onKeyDown={onKeyDown}
               placeholder="Search leads, pages, or commands..."
+              aria-label="Search leads, pages, or commands"
+              aria-autocomplete="list"
+              aria-controls="search-results"
+              aria-activedescendant={results[selectedIdx] ? `search-result-${selectedIdx}` : undefined}
               className="flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground"
             />
             <kbd className="text-xs text-muted-foreground/50 border border-border rounded px-1.5 py-0.5 font-mono">ESC</kbd>
           </div>
 
           {/* Results */}
-          <div className="max-h-80 overflow-y-auto py-2">
+          <div id="search-results" role="listbox" aria-label="Search results" className="max-h-80 overflow-y-auto py-2">
             {results.length === 0 && q.length > 0 && (
               <div className="px-4 py-8 text-center text-muted-foreground text-sm">
                 No results for "{query}"
@@ -144,6 +148,9 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
                   return (
                     <button
                       key={`page-${r.href}`}
+                      id={`search-result-${i}`}
+                      role="option"
+                      aria-selected={isSelected}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${isSelected ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted/50"}`}
                       onClick={() => handleSelect(r)}
                       onMouseEnter={() => setSelectedIdx(i)}
@@ -170,6 +177,9 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
                   return (
                     <button
                       key={`lead-${r.id}`}
+                      id={`search-result-${i}`}
+                      role="option"
+                      aria-selected={isSelected}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${isSelected ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted/50"}`}
                       onClick={() => handleSelect(r)}
                       onMouseEnter={() => setSelectedIdx(i)}
