@@ -103,29 +103,75 @@ export interface FinderResponse {
 export function searchLeads(opts: {
   q?: string;
   industry?: string;
+  industries?: string; // comma-separated
   titleLevel?: string;
+  titleLevels?: string; // comma-separated
   companySize?: string;
+  companySizes?: string; // comma-separated
   country?: string;
+  countries?: string; // comma-separated
+  operator?: "AND" | "OR"; // logic for combining multi-select filters
   verifiedOnly?: boolean;
   page: number;
   limit: number;
 }): FinderResponse {
-  const { q, industry, titleLevel, companySize, country, verifiedOnly, page, limit } = opts;
+  const { q, industry, industries, titleLevel, titleLevels, companySize, companySizes, country, countries, operator = "AND", verifiedOnly, page, limit } = opts;
+
+  // Support both legacy single-select and new multi-select
+  const industriesList = industries
+    ? industries.split(",").filter(Boolean)
+    : industry && industry !== "all"
+      ? [industry]
+      : [];
+  const titleLevelsList = titleLevels
+    ? titleLevels.split(",").filter(Boolean)
+    : titleLevel && titleLevel !== "all"
+      ? [titleLevel]
+      : [];
+  const companySizesList = companySizes
+    ? companySizes.split(",").filter(Boolean)
+    : companySize && companySize !== "all"
+      ? [companySize]
+      : [];
+  const countriesList = countries
+    ? countries.split(",").filter(Boolean)
+    : country && country !== "all"
+      ? [country]
+      : [];
 
   let total = 4_892_341;
   if (q) total = Math.floor(total * 0.11);
-  if (industry) total = Math.floor(total * 0.09);
-  if (titleLevel) total = Math.floor(total * 0.15);
-  if (companySize) total = Math.floor(total * 0.22);
-  if (country) total = Math.floor(total * 0.18);
+  if (industriesList.length > 0) total = Math.floor(total * 0.09);
+  if (titleLevelsList.length > 0) total = Math.floor(total * 0.15);
+  if (companySizesList.length > 0) total = Math.floor(total * 0.22);
+  if (countriesList.length > 0) total = Math.floor(total * 0.18);
   if (verifiedOnly) total = Math.floor(total * 0.72);
   total = Math.max(total, limit);
 
-  const baseSeed = strSeed([q, industry, titleLevel, companySize, country, verifiedOnly ? "1" : "0"].join("|"));
-  const countriesPool = country ? [country] : COUNTRIES;
-  const industriesPool = industry ? [industry] : INDUSTRIES;
-  const titlesPool = titleLevel && TITLE_LEVELS[titleLevel] ? TITLE_LEVELS[titleLevel] : ALL_TITLES;
-  const sizesPool = companySize ? [companySize] : COMPANY_SIZES;
+  const baseSeed = strSeed(
+    [
+      q,
+      industriesList.join(","),
+      titleLevelsList.join(","),
+      companySizesList.join(","),
+      countriesList.join(","),
+      operator,
+      verifiedOnly ? "1" : "0",
+    ].join("|")
+  );
+
+  const countriesPool = countriesList.length > 0 ? countriesList : COUNTRIES;
+  const industriesPool = industriesList.length > 0 ? industriesList : INDUSTRIES;
+
+  // Flatten title levels pool from selected keys
+  let titlesPool = ALL_TITLES;
+  if (titleLevelsList.length > 0) {
+    titlesPool = titleLevelsList
+      .flatMap((key) => TITLE_LEVELS[key as keyof typeof TITLE_LEVELS] || [])
+      .filter(Boolean);
+  }
+
+  const sizesPool = companySizesList.length > 0 ? companySizesList : COMPANY_SIZES;
   const tlds = ["com","io","co","net","ai"];
 
   const results: FinderLead[] = [];

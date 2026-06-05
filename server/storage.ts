@@ -1,6 +1,7 @@
 import {
   users, settings, leads, campaigns, steps, messages, jobs,
   forms, formSubmissions, funnels, automations, meetings, calendarSettings, reminders,
+  webhooks, webhookDeliveries, savedFilters,
 } from '@shared/schema';
 import type {
   User, InsertUser,
@@ -17,6 +18,9 @@ import type {
   Meeting, InsertMeeting,
   CalendarSettings, InsertCalendarSettings,
   Reminder, InsertReminder,
+  Webhook, InsertWebhook,
+  WebhookDelivery, InsertWebhookDelivery,
+  SavedFilter, InsertSavedFilter,
 } from '@shared/schema';
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
@@ -164,6 +168,27 @@ try {
       smtp_from_email text NOT NULL DEFAULT '',
       smtp_secure integer NOT NULL DEFAULT 0
     );
+    CREATE TABLE IF NOT EXISTS webhooks (
+      id integer PRIMARY KEY AUTOINCREMENT,
+      url text NOT NULL,
+      event_types text NOT NULL DEFAULT '[]',
+      secret text NOT NULL,
+      active integer NOT NULL DEFAULT 1,
+      created_at text NOT NULL,
+      last_triggered_at text,
+      failure_count integer NOT NULL DEFAULT 0
+    );
+    CREATE TABLE IF NOT EXISTS webhook_deliveries (
+      id integer PRIMARY KEY AUTOINCREMENT,
+      webhook_id integer NOT NULL,
+      event_type text NOT NULL,
+      payload text NOT NULL,
+      status_code integer,
+      response_body text,
+      error text,
+      delivered_at text NOT NULL,
+      retry_count integer NOT NULL DEFAULT 0
+    );
   `);
 } catch { /* ignore */ }
 
@@ -247,6 +272,18 @@ export interface IStorage {
   createReminder(r: InsertReminder): Promise<Reminder>;
   updateReminder(id: number, patch: Partial<InsertReminder>): Promise<Reminder | undefined>;
   deleteReminder(id: number): Promise<boolean>;
+
+  getWebhooks(): Promise<Webhook[]>;
+  getWebhook(id: number): Promise<Webhook | undefined>;
+  createWebhook(w: InsertWebhook): Promise<Webhook>;
+  updateWebhook(id: number, patch: Partial<InsertWebhook>): Promise<Webhook | undefined>;
+  deleteWebhook(id: number): Promise<boolean>;
+  updateWebhookFailureCount(id: number, count: number): Promise<void>;
+  updateWebhookLastTriggered(id: number): Promise<void>;
+
+  getWebhookDeliveries(webhookId: number): Promise<WebhookDelivery[]>;
+  createWebhookDelivery(d: InsertWebhookDelivery): Promise<WebhookDelivery>;
+  getRecentWebhookDeliveries(limit: number): Promise<WebhookDelivery[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -447,6 +484,40 @@ export class DatabaseStorage implements IStorage {
   async createReminder(r: InsertReminder) { return db.insert(reminders).values(r).returning().get(); }
   async updateReminder(id: number, patch: Partial<InsertReminder>) { return db.update(reminders).set(patch).where(eq(reminders.id, id)).returning().get(); }
   async deleteReminder(id: number) { return db.delete(reminders).where(eq(reminders.id, id)).run().changes > 0; }
+
+  async getSavedFilters() { return db.select().from(savedFilters).all(); }
+  async getSavedFilter(id: number) { return db.select().from(savedFilters).where(eq(savedFilters.id, id)).get(); }
+  async createSavedFilter(f: InsertSavedFilter) { return db.insert(savedFilters).values(f).returning().get(); }
+  async updateSavedFilter(id: number, patch: Partial<InsertSavedFilter>) { return db.update(savedFilters).set({ ...patch, updatedAt: new Date().toISOString() }).where(eq(savedFilters.id, id)).returning().get(); }
+  async deleteSavedFilter(id: number) { return db.delete(savedFilters).where(eq(savedFilters.id, id)).run().changes > 0; }
+
+  async getWebhooks() { return db.select().from(webhooks).all(); }
+  async getWebhook(id: number) { return db.select().from(webhooks).where(eq(webhooks.id, id)).get(); }
+  async createWebhook(w: InsertWebhook) { return db.insert(webhooks).values(w).returning().get(); }
+  async updateWebhook(id: number, patch: Partial<InsertWebhook>) {
+    return db.update(webhooks).set(patch).where(eq(webhooks.id, id)).returning().get();
+  }
+  async deleteWebhook(id: number) {
+    db.delete(webhookDeliveries).where(eq(webhookDeliveries.webhookId, id)).run();
+    return db.delete(webhooks).where(eq(webhooks.id, id)).run().changes > 0;
+  }
+  async updateWebhookFailureCount(id: number, count: number) {
+    db.update(webhooks).set({ failureCount: count }).where(eq(webhooks.id, id)).run();
+  }
+  async updateWebhookLastTriggered(id: number) {
+    const now = new Date().toISOString();
+    db.update(webhooks).set({ lastTriggeredAt: now }).where(eq(webhooks.id, id)).run();
+  }
+
+  async getWebhookDeliveries(webhookId: number) {
+    return db.select().from(webhookDeliveries).where(eq(webhookDeliveries.webhookId, webhookId)).all();
+  }
+  async createWebhookDelivery(d: InsertWebhookDelivery) {
+    return db.insert(webhookDeliveries).values(d).returning().get();
+  }
+  async getRecentWebhookDeliveries(limit: number) {
+    return db.select().from(webhookDeliveries).orderBy((col) => col.deliveredAt).all().slice(-limit);
+  }
 }
 
 export const storage = new DatabaseStorage();

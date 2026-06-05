@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
+import { SavedFilterMenu, type FilterConfig } from "@/components/SavedFilterMenu";
+import { MultiSelectFilter, SelectedBadges } from "@/components/AdvancedFilterPanel";
 import {
   Search, Download, UserPlus, CheckCircle2, XCircle, ChevronLeft,
   ChevronRight, Filter, Zap, ShieldCheck, Globe, Building2, Users,
@@ -73,22 +75,31 @@ export default function FindLeads() {
 
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
+  const [industries, setIndustries] = useState<string[]>([]);
+  const [titleLevels, setTitleLevels] = useState<string[]>([]);
+  const [companySizes, setCompanySizes] = useState<string[]>([]);
+  const [countries, setCountries] = useState<string[]>([]);
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
+  const [filterOperator, setFilterOperator] = useState<"AND" | "OR">("AND");
+  const [page, setPage] = useState(1);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  // Legacy single-select state (kept for backward compatibility if needed)
   const [industry, setIndustry] = useState("all");
   const [titleLevel, setTitleLevel] = useState("all");
   const [companySize, setCompanySize] = useState("all");
   const [country, setCountry] = useState("all");
-  const [verifiedOnly, setVerifiedOnly] = useState(false);
-  const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const { data: meta } = useQuery<FinderMeta>({ queryKey: ["/api/finder/meta"] });
 
   const params = new URLSearchParams({
     ...(debouncedQ && { q: debouncedQ }),
-    ...(industry !== "all" && { industry }),
-    ...(titleLevel !== "all" && { titleLevel }),
-    ...(companySize !== "all" && { companySize }),
-    ...(country !== "all" && { country }),
+    // Support multi-select filters via comma-separated values
+    ...(industries.length > 0 && { industries: industries.join(",") }),
+    ...(titleLevels.length > 0 && { titleLevels: titleLevels.join(",") }),
+    ...(companySizes.length > 0 && { companySizes: companySizes.join(",") }),
+    ...(countries.length > 0 && { countries: countries.join(",") }),
+    ...(filterOperator !== "AND" && { operator: filterOperator }),
     ...(verifiedOnly && { verifiedOnly: "true" }),
     page: String(page),
     limit: "25",
@@ -182,12 +193,65 @@ export default function FindLeads() {
   };
 
   const resetFilters = () => {
-    setQ(""); setDebouncedQ(""); setIndustry("all"); setTitleLevel("all");
-    setCompanySize("all"); setCountry("all"); setVerifiedOnly(false);
-    setPage(1); setSelected(new Set());
+    setQ("");
+    setDebouncedQ("");
+    setIndustries([]);
+    setTitleLevels([]);
+    setCompanySizes([]);
+    setCountries([]);
+    setVerifiedOnly(false);
+    setFilterOperator("AND");
+    setPage(1);
+    setSelected(new Set());
   };
 
-  const hasFilters = debouncedQ || industry !== "all" || titleLevel !== "all" || companySize !== "all" || country !== "all" || verifiedOnly;
+  const getCurrentFilterConfig = (): FilterConfig => ({
+    searchText: debouncedQ,
+    industries: industries.length > 0 ? industries : undefined,
+    titleLevels: titleLevels.length > 0 ? titleLevels : undefined,
+    companySizes: companySizes.length > 0 ? companySizes : undefined,
+    countries: countries.length > 0 ? countries : undefined,
+    verifiedOnly: verifiedOnly || undefined,
+  });
+
+  const handleLoadSavedFilter = (config: FilterConfig, operator: "AND" | "OR") => {
+    setQ(config.searchText || "");
+    setDebouncedQ(config.searchText || "");
+    setIndustries(config.industries || []);
+    setTitleLevels(config.titleLevels || []);
+    setCompanySizes(config.companySizes || []);
+    setCountries(config.countries || []);
+    setVerifiedOnly(config.verifiedOnly || false);
+    setFilterOperator(operator);
+    setPage(1);
+    setSelected(new Set());
+  };
+
+  const handleRemoveFilter = (key: string, value: string) => {
+    switch (key) {
+      case "industries":
+        setIndustries((p) => p.filter((v) => v !== value));
+        break;
+      case "titleLevels":
+        setTitleLevels((p) => p.filter((v) => v !== value));
+        break;
+      case "companySizes":
+        setCompanySizes((p) => p.filter((v) => v !== value));
+        break;
+      case "countries":
+        setCountries((p) => p.filter((v) => v !== value));
+        break;
+    }
+    setPage(1);
+  };
+
+  const hasFilters =
+    debouncedQ ||
+    industries.length > 0 ||
+    titleLevels.length > 0 ||
+    companySizes.length > 0 ||
+    countries.length > 0 ||
+    verifiedOnly;
 
   return (
     <div className="space-y-6">
@@ -228,61 +292,131 @@ export default function FindLeads() {
             className="pl-9 text-base h-11"
           />
         </div>
+
+        {/* Advanced Multi-Select Filters */}
         <div className="flex flex-wrap gap-2 items-center">
-          <Select value={industry} onValueChange={v => { setIndustry(v); setPage(1); }}>
-            <SelectTrigger className="w-44 h-9 text-sm">
-              <Building2 className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-              <SelectValue placeholder="Industry" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Industries</SelectItem>
-              {meta?.industries.map(i => <SelectItem key={i} value={i}>{i}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={titleLevel} onValueChange={v => { setTitleLevel(v); setPage(1); }}>
-            <SelectTrigger className="w-44 h-9 text-sm">
-              <Users className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-              <SelectValue placeholder="Seniority" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Seniority</SelectItem>
-              {meta?.titleLevels.map(t => <SelectItem key={t} value={t}>{TITLE_LEVEL_LABELS[t] || t}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={companySize} onValueChange={v => { setCompanySize(v); setPage(1); }}>
-            <SelectTrigger className="w-40 h-9 text-sm">
-              <Building2 className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-              <SelectValue placeholder="Company Size" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Any Size</SelectItem>
-              {meta?.companySizes.map(s => <SelectItem key={s} value={s}>{s} employees</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={country} onValueChange={v => { setCountry(v); setPage(1); }}>
-            <SelectTrigger className="w-44 h-9 text-sm">
-              <Globe className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
-              <SelectValue placeholder="Country" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Countries</SelectItem>
-              {meta?.countries.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <label className="flex items-center gap-2 text-sm cursor-pointer select-none ml-1">
+          {meta && (
+            <>
+              <MultiSelectFilter
+                label="Industries"
+                icon={<Building2 className="h-3.5 w-3.5" />}
+                options={meta.industries}
+                selected={industries}
+                onSelect={(selected) => {
+                  setIndustries(selected);
+                  setPage(1);
+                }}
+              />
+              <MultiSelectFilter
+                label="Seniority"
+                icon={<Users className="h-3.5 w-3.5" />}
+                options={Object.keys(TITLE_LEVELS).map(
+                  (k) => TITLE_LEVEL_LABELS[k] || k
+                )}
+                selected={titleLevels.map((t) => TITLE_LEVEL_LABELS[t] || t)}
+                onSelect={(selected) => {
+                  const keys = selected.map(
+                    (s) =>
+                      Object.keys(TITLE_LEVEL_LABELS).find(
+                        (k) => TITLE_LEVEL_LABELS[k] === s
+                      ) || s
+                  );
+                  setTitleLevels(keys as string[]);
+                  setPage(1);
+                }}
+              />
+              <MultiSelectFilter
+                label="Company Size"
+                icon={<Building2 className="h-3.5 w-3.5" />}
+                options={meta.companySizes.map((s) => `${s} employees`)}
+                selected={companySizes}
+                onSelect={(selected) => {
+                  setCompanySizes(selected);
+                  setPage(1);
+                }}
+              />
+              <MultiSelectFilter
+                label="Countries"
+                icon={<Globe className="h-3.5 w-3.5" />}
+                options={meta.countries}
+                selected={countries}
+                onSelect={(selected) => {
+                  setCountries(selected);
+                  setPage(1);
+                }}
+              />
+            </>
+          )}
+
+          <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
             <Checkbox
               checked={verifiedOnly}
-              onCheckedChange={v => { setVerifiedOnly(!!v); setPage(1); }}
+              onCheckedChange={(v) => {
+                setVerifiedOnly(!!v);
+                setPage(1);
+              }}
             />
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-500" />
             Verified only
           </label>
+
+          <SavedFilterMenu
+            currentFilters={getCurrentFilterConfig()}
+            onLoadFilter={handleLoadSavedFilter}
+            disabled={!hasFilters}
+          />
+
           {hasFilters && (
-            <Button variant="ghost" size="sm" onClick={resetFilters} className="h-9 gap-1 text-muted-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={resetFilters}
+              className="h-9 gap-1 text-muted-foreground"
+            >
               <XCircle className="h-3.5 w-3.5" /> Clear
             </Button>
           )}
         </div>
+
+        {/* Selected Filter Badges */}
+        {(industries.length > 0 ||
+          titleLevels.length > 0 ||
+          companySizes.length > 0 ||
+          countries.length > 0) && (
+          <SelectedBadges
+            selections={{
+              industries,
+              titleLevels: titleLevels.map((t) => TITLE_LEVEL_LABELS[t] || t),
+              companySizes,
+              countries,
+            }}
+            onRemove={(key, value) => {
+              if (key === "titleLevels") {
+                const titleKey = Object.keys(TITLE_LEVEL_LABELS).find(
+                  (k) => TITLE_LEVEL_LABELS[k] === value
+                );
+                if (titleKey) handleRemoveFilter("titleLevels", titleKey);
+              } else {
+                handleRemoveFilter(key, value);
+              }
+            }}
+            onClearAll={resetFilters}
+          />
+        )}
+
+        {/* Filter Logic Indicator */}
+        {(industries.length > 1 ||
+          titleLevels.length > 1 ||
+          companySizes.length > 1 ||
+          countries.length > 1) && (
+          <div className="flex items-center gap-2 px-2 py-1.5 bg-muted rounded text-xs">
+            <Filter className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-muted-foreground">
+              Using <span className="font-medium text-foreground">{filterOperator}</span> logic
+              (all selected options within each filter category match)
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Results */}

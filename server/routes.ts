@@ -7,8 +7,9 @@ import {
   insertLeadSchema, insertCampaignSchema, insertStepSchema,
   insertMessageSchema, insertSettingsSchema, insertJobSchema,
   insertFormSchema, insertFormSubmissionSchema, insertFunnelSchema, insertAutomationSchema,
-  insertMeetingSchema,
+  insertMeetingSchema, insertSavedFilterSchema, insertWebhookSchema,
 } from "@shared/schema";
+import { generateWebhookSecret, fireWebhookEvent, verifySignature } from "./lib/webhooks";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -112,6 +113,104 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
 
+  // ---- Bulk Operations ----
+  // Bulk enroll leads in a campaign
+  app.post("/api/campaigns/:id/bulk-enroll", async (req, res) => {
+    const campaignId = Number(req.params.id);
+    const leadIds = Array.isArray(req.body?.leadIds)
+      ? req.body.leadIds.map(Number).filter((n: number) => Number.isFinite(n))
+      : [];
+
+    if (leadIds.length === 0) {
+      return res.status(400).json({ error: "No leads specified" });
+    }
+
+    const campaign = await storage.getCampaign(campaignId);
+    if (!campaign) {
+      return res.status(404).json({ error: "Campaign not found" });
+    }
+
+    const { fireWebhooks } = await import("./lib/bulk-ops");
+    const { bulkEnrollLeadsInCampaign } = await import("./lib/bulk-ops");
+
+    const result = await bulkEnrollLeadsInCampaign(leadIds, campaignId);
+
+    // Fire webhooks for each enrolled lead
+    if (result.enrolled > 0) {
+      for (const leadId of leadIds.slice(0, result.enrolled)) {
+        fireWebhooks("campaign.lead_enrolled", {
+          leadId,
+          campaignId,
+          timestamp: new Date().toISOString(),
+        }).catch(() => {});
+      }
+    }
+
+    res.json(result);
+  });
+
+  // Bulk send one-off emails
+  app.post("/api/leads/bulk-email", async (req, res) => {
+    const leadIds = Array.isArray(req.body?.leadIds)
+      ? req.body.leadIds.map(Number).filter((n: number) => Number.isFinite(n))
+      : [];
+    const subject = typeof req.body?.subject === "string" ? req.body.subject : "";
+    const body = typeof req.body?.body === "string" ? req.body.body : "";
+
+    if (leadIds.length === 0) {
+      return res.status(400).json({ error: "No leads specified" });
+    }
+
+    if (!subject.trim() || !body.trim()) {
+      return res.status(400).json({ error: "Subject or body is empty" });
+    }
+
+    const { fireWebhooks } = await import("./lib/bulk-ops");
+    const { bulkSendEmails } = await import("./lib/bulk-ops");
+
+    const result = await bulkSendEmails(leadIds, subject, body);
+
+    // Fire webhooks
+    if (result.sent > 0) {
+      fireWebhooks("bulk.emails_sent", {
+        count: result.sent,
+        timestamp: new Date().toISOString(),
+      }).catch(() => {});
+    }
+
+    res.json(result);
+  });
+
+  // Bulk tag operations
+  app.post("/api/leads/bulk-tags", async (req, res) => {
+    const leadIds = Array.isArray(req.body?.leadIds)
+      ? req.body.leadIds.map(Number).filter((n: number) => Number.isFinite(n))
+      : [];
+    const tagsToAdd = Array.isArray(req.body?.tagsToAdd) ? req.body.tagsToAdd : [];
+    const tagsToRemove = Array.isArray(req.body?.tagsToRemove) ? req.body.tagsToRemove : [];
+
+    if (leadIds.length === 0) {
+      return res.status(400).json({ error: "No leads specified" });
+    }
+
+    const { fireWebhooks } = await import("./lib/bulk-ops");
+    const { bulkUpdateTags } = await import("./lib/bulk-ops");
+
+    const result = await bulkUpdateTags(leadIds, tagsToAdd, tagsToRemove);
+
+    // Fire webhooks
+    if (result.updated > 0) {
+      fireWebhooks("bulk.tags_updated", {
+        count: result.updated,
+        tagsAdded: tagsToAdd,
+        tagsRemoved: tagsToRemove,
+        timestamp: new Date().toISOString(),
+      }).catch(() => {});
+    }
+
+    res.json(result);
+  });
+
   // ---- Steps ----
   app.post("/api/steps", async (req, res) => {
     const parsed = insertStepSchema.safeParse(req.body);
@@ -181,9 +280,14 @@ export async function registerRoutes(
     res.json(searchLeads({
       q: req.query.q as string | undefined,
       industry: req.query.industry as string | undefined,
+      industries: req.query.industries as string | undefined,
       titleLevel: req.query.titleLevel as string | undefined,
+      titleLevels: req.query.titleLevels as string | undefined,
       companySize: req.query.companySize as string | undefined,
+      companySizes: req.query.companySizes as string | undefined,
       country: req.query.country as string | undefined,
+      countries: req.query.countries as string | undefined,
+      operator: (req.query.operator as string) === "OR" ? "OR" : "AND",
       verifiedOnly: req.query.verifiedOnly === "true",
       page,
       limit,
@@ -796,6 +900,76 @@ export async function registerRoutes(
     const ok = await storage.deleteAutomation(Number(req.params.id));
     if (!ok) return res.status(404).json({ error: "Not found" });
     res.json({ ok: true });
+  });
+
+  // ---- Saved Filters (for Lead Finder) ----
+  app.get("/api/filters", async (_req, res) => {
+    res.json(await storage.getSavedFilters());
+  });
+  app.get("/api/filters/:id", async (req, res) => {
+    const f = await storage.getSavedFilter(Number(req.params.id));
+    if (!f) return res.status(404).json({ error: "Not found" });
+    res.json(f);
+  });
+  app.post("/api/filters", async (req, res) => {
+    const parsed = insertSavedFilterSchema.safeParse({
+      ...req.body,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    res.json(await storage.createSavedFilter(parsed.data));
+  });
+  app.patch("/api/filters/:id", async (req, res) => {
+    const parsed = insertSavedFilterSchema.partial().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    const updated = await storage.updateSavedFilter(Number(req.params.id), parsed.data);
+    if (!updated) return res.status(404).json({ error: "Not found" });
+    res.json(updated);
+  });
+  app.delete("/api/filters/:id", async (req, res) => {
+    const ok = await storage.deleteSavedFilter(Number(req.params.id));
+    if (!ok) return res.status(404).json({ error: "Not found" });
+    res.json({ ok: true });
+  });
+
+  // ---- Webhooks ----
+  app.get("/api/webhooks", async (_req, res) => {
+    res.json(await storage.getWebhooks());
+  });
+  app.get("/api/webhooks/:id", async (req, res) => {
+    const w = await storage.getWebhook(Number(req.params.id));
+    if (!w) return res.status(404).json({ error: "Not found" });
+    const deliveries = await storage.getWebhookDeliveries(w.id);
+    res.json({ ...w, deliveries });
+  });
+  app.post("/api/webhooks", async (req, res) => {
+    const { generateWebhookSecret } = await import("./lib/bulk-ops");
+    const parsed = insertWebhookSchema.safeParse({
+      ...req.body,
+      secret: generateWebhookSecret(),
+      createdAt: new Date().toISOString(),
+    });
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    res.json(await storage.createWebhook(parsed.data));
+  });
+  app.patch("/api/webhooks/:id", async (req, res) => {
+    const parsed = insertWebhookSchema.partial().safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    const updated = await storage.updateWebhook(Number(req.params.id), parsed.data);
+    if (!updated) return res.status(404).json({ error: "Not found" });
+    res.json(updated);
+  });
+  app.delete("/api/webhooks/:id", async (req, res) => {
+    const ok = await storage.deleteWebhook(Number(req.params.id));
+    if (!ok) return res.status(404).json({ error: "Not found" });
+    res.json({ ok: true });
+  });
+  // Get webhook delivery logs
+  app.get("/api/webhooks/:id/deliveries", async (req, res) => {
+    const limit = Math.min(100, Math.max(1, parseInt((req.query.limit as string) || "50", 10)));
+    const deliveries = await storage.getWebhookDeliveries(Number(req.params.id));
+    res.json(deliveries.slice(-limit));
   });
 
   return httpServer;

@@ -279,6 +279,65 @@ export type InsertCalendarSettings = z.infer<typeof insertCalendarSettingsSchema
 export type CalendarSettings = typeof calendarSettings.$inferSelect;
 
 // ---------------------------------------------------------------------------
+// Saved Filters — reusable lead finder filter presets with AND/OR logic
+// ---------------------------------------------------------------------------
+export const savedFilters = sqliteTable("saved_filters", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  description: text("description"),
+  // Filter config as JSON: { searchText?, industries[], titleLevels[], companySizes[], countries[], verifiedOnly? }
+  config: text("config").notNull().default("{}"),
+  // Logic operator: "AND" (all filters must match) or "OR" (any filter matches)
+  operator: text("operator").notNull().default("AND"), // AND | OR
+  // Whether this filter is public/shared
+  isPublic: integer("is_public", { mode: "boolean" }).notNull().default(false),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+export const insertSavedFilterSchema = createInsertSchema(savedFilters).omit({ id: true });
+export type InsertSavedFilter = z.infer<typeof insertSavedFilterSchema>;
+export type SavedFilter = typeof savedFilters.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// Webhooks — outbound event notifications for lead/campaign changes
+// ---------------------------------------------------------------------------
+export const webhooks = sqliteTable("webhooks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  url: text("url").notNull(),
+  // Event types: lead.created | lead.status_changed | campaign.sent | form.submitted
+  eventTypes: text("event_types").notNull().default("[]"), // JSON array
+  // HMAC secret for signature verification
+  secret: text("secret").notNull(),
+  // Whether this webhook is active
+  active: integer("active", { mode: "boolean" }).notNull().default(true),
+  createdAt: text("created_at").notNull(),
+  lastTriggeredAt: text("last_triggered_at"),
+  failureCount: integer("failure_count").notNull().default(0),
+});
+export const insertWebhookSchema = createInsertSchema(webhooks).omit({ id: true });
+export type InsertWebhook = z.infer<typeof insertWebhookSchema>;
+export type Webhook = typeof webhooks.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// Webhook deliveries — log of webhook delivery attempts (for audit/debugging)
+// ---------------------------------------------------------------------------
+export const webhookDeliveries = sqliteTable("webhook_deliveries", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  webhookId: integer("webhook_id").notNull(),
+  eventType: text("event_type").notNull(),
+  payload: text("payload").notNull(), // JSON
+  statusCode: integer("status_code"),
+  responseBody: text("response_body"),
+  error: text("error"),
+  deliveredAt: text("delivered_at").notNull(),
+  // retry_count for eventual consistency tracking
+  retryCount: integer("retry_count").notNull().default(0),
+});
+export const insertWebhookDeliverySchema = createInsertSchema(webhookDeliveries).omit({ id: true });
+export type InsertWebhookDelivery = z.infer<typeof insertWebhookDeliverySchema>;
+export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
+
+// ---------------------------------------------------------------------------
 // Reminders — follow-up tasks attached to leads
 // ---------------------------------------------------------------------------
 export const reminders = sqliteTable("reminders", {
