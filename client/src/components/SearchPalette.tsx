@@ -4,7 +4,7 @@ import { useLocation } from "wouter";
 import type { Lead } from "@shared/schema";
 import {
   Search, Users, Send, LayoutDashboard, KanbanSquare, Inbox, BarChart3,
-  Calendar, FileText, Layers, GitBranch, Settings, ArrowRight, CheckCircle2,
+  Calendar, FileText, Layers, GitBranch, Settings, ArrowRight, CheckCircle2, Webhook,
 } from "lucide-react";
 import { scoreLead, scoreLabel } from "@/lib/scoring";
 
@@ -31,6 +31,7 @@ const PAGES: SearchResult[] = [
   { type: "page", label: "Forms", subtitle: "Lead capture builder", href: "/forms", icon: FileText },
   { type: "page", label: "Funnels", subtitle: "Landing pages", href: "/funnels", icon: Layers },
   { type: "page", label: "Automations", subtitle: "Workflow builder", href: "/automations", icon: GitBranch },
+  { type: "page", label: "Webhooks", subtitle: "Developer integrations", href: "/webhooks", icon: Webhook },
   { type: "page", label: "Settings", subtitle: "SMTP, AI, preferences", href: "/settings", icon: Settings },
 ];
 

@@ -12,7 +12,7 @@ import type { Message, Automation } from "@shared/schema";
 import {
   LayoutDashboard, Users, Send, Inbox, Globe, Sparkles, BarChart3, Settings as SettingsIcon,
   Sun, Moon, KanbanSquare, Home, HardHat, Search, FileText, Layers, GitBranch, Calendar,
-  Menu, X, Command,
+  Menu, X, Command, Webhook,
 } from "lucide-react";
 
 // Business (B2B) navigation — the full sales OS.
@@ -28,6 +28,7 @@ const BUSINESS_NAV = [
   { href: "/forms", label: "Forms", icon: FileText },
   { href: "/funnels", label: "Funnels", icon: Layers },
   { href: "/automations", label: "Automations", icon: GitBranch },
+  { href: "/webhooks", label: "Webhooks", icon: Webhook },
 ];
 
 // Consumer (B2C) navigation — direct-to-homeowner jobs, simple and focused.
