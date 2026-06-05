@@ -24,11 +24,5 @@ export function scoreLabel(score: number): { label: string; className: string } 
   if (score >= 76) return { label: "Qualified", className: "text-emerald-500" };
   if (score >= 56) return { label: "Hot", className: "text-orange-500" };
   if (score >= 31) return { label: "Warm", className: "text-amber-400" };
-  return { label: "Cold", className: "text-blue-400" };
-}
-
-export function ScoreBadge({ lead }: { lead: Parameters<typeof scoreLead>[0] }) {
-  const score = scoreLead(lead);
-  const { label, className } = scoreLabel(score);
-  return { score, label, className };
+  return { label: "Cold", className: "text-slate-400" };
 }
