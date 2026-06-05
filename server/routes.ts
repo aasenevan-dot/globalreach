@@ -164,69 +164,75 @@ export async function registerRoutes(
 
   // Bulk send one-off emails
   app.post("/api/leads/bulk-email", async (req, res) => {
-    const leadIds = Array.isArray(req.body?.leadIds)
-      ? req.body.leadIds.map(Number).filter((n: number) => Number.isFinite(n))
-      : [];
-    const subject = typeof req.body?.subject === "string" ? req.body.subject : "";
-    const body = typeof req.body?.body === "string" ? req.body.body : "";
+    try {
+      const leadIds = Array.isArray(req.body?.leadIds)
+        ? req.body.leadIds.map(Number).filter((n: number) => Number.isFinite(n))
+        : [];
+      const subject = typeof req.body?.subject === "string" ? req.body.subject : "";
+      const body = typeof req.body?.body === "string" ? req.body.body : "";
 
-    if (leadIds.length === 0) {
-      return res.status(400).json({ error: "No leads specified" });
-    }
+      if (leadIds.length === 0) {
+        return res.status(400).json({ error: "No leads specified" });
+      }
 
-    if (!subject.trim() || !body.trim()) {
-      return res.status(400).json({ error: "Subject or body is empty" });
-    }
+      if (!subject.trim() || !body.trim()) {
+        return res.status(400).json({ error: "Subject or body is empty" });
+      }
 
-    const { bulkSendEmails } = await import("./lib/bulk-ops");
+      const { bulkSendEmails } = await import("./lib/bulk-ops");
 
-    const result = await bulkSendEmails(leadIds, subject, body);
+      const result = await bulkSendEmails(leadIds, subject, body);
 
-    // Fire webhooks
-    if (result.sent > 0) {
-      fireWebhookEvent("bulk.emails_sent", {
-        count: result.sent,
-        timestamp: new Date().toISOString(),
-      }).catch(() => {});
-    }
+      // Fire webhooks
+      if (result.sent > 0) {
+        fireWebhookEvent("bulk.emails_sent", {
+          count: result.sent,
+          timestamp: new Date().toISOString(),
+        }).catch(() => {});
+      }
 
-    res.json(result);
+      res.json(result);
+    } catch (e: any) { res.status(500).json({ error: e.message || "Bulk email failed" }); }
   });
 
   // Bulk tag operations
   app.post("/api/leads/bulk-tags", async (req, res) => {
-    const leadIds = Array.isArray(req.body?.leadIds)
-      ? req.body.leadIds.map(Number).filter((n: number) => Number.isFinite(n))
-      : [];
-    const tagsToAdd = Array.isArray(req.body?.tagsToAdd) ? req.body.tagsToAdd : [];
-    const tagsToRemove = Array.isArray(req.body?.tagsToRemove) ? req.body.tagsToRemove : [];
+    try {
+      const leadIds = Array.isArray(req.body?.leadIds)
+        ? req.body.leadIds.map(Number).filter((n: number) => Number.isFinite(n))
+        : [];
+      const tagsToAdd = Array.isArray(req.body?.tagsToAdd) ? req.body.tagsToAdd : [];
+      const tagsToRemove = Array.isArray(req.body?.tagsToRemove) ? req.body.tagsToRemove : [];
 
-    if (leadIds.length === 0) {
-      return res.status(400).json({ error: "No leads specified" });
-    }
+      if (leadIds.length === 0) {
+        return res.status(400).json({ error: "No leads specified" });
+      }
 
-    const { bulkUpdateTags } = await import("./lib/bulk-ops");
+      const { bulkUpdateTags } = await import("./lib/bulk-ops");
 
-    const result = await bulkUpdateTags(leadIds, tagsToAdd, tagsToRemove);
+      const result = await bulkUpdateTags(leadIds, tagsToAdd, tagsToRemove);
 
-    // Fire webhooks
-    if (result.updated > 0) {
-      fireWebhookEvent("bulk.tags_updated", {
-        count: result.updated,
-        tagsAdded: tagsToAdd,
-        tagsRemoved: tagsToRemove,
-        timestamp: new Date().toISOString(),
-      }).catch(() => {});
-    }
+      // Fire webhooks
+      if (result.updated > 0) {
+        fireWebhookEvent("bulk.tags_updated", {
+          count: result.updated,
+          tagsAdded: tagsToAdd,
+          tagsRemoved: tagsToRemove,
+          timestamp: new Date().toISOString(),
+        }).catch(() => {});
+      }
 
-    res.json(result);
+      res.json(result);
+    } catch (e: any) { res.status(500).json({ error: e.message || "Bulk tag update failed" }); }
   });
 
   // ---- Steps ----
   app.post("/api/steps", async (req, res) => {
-    const parsed = insertStepSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    res.json(await storage.createStep(parsed.data));
+    try {
+      const parsed = insertStepSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      res.json(await storage.createStep(parsed.data));
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create step" }); }
   });
   app.patch("/api/steps/:id", async (req, res) => {
     const parsed = insertStepSchema.partial().safeParse(req.body);
@@ -247,9 +253,11 @@ export async function registerRoutes(
     res.json(leadId ? await storage.getMessagesByLead(leadId) : await storage.getMessages());
   });
   app.post("/api/messages", async (req, res) => {
-    const parsed = insertMessageSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    res.json(await storage.createMessage(parsed.data));
+    try {
+      const parsed = insertMessageSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      res.json(await storage.createMessage(parsed.data));
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create message" }); }
   });
 
   // ---- Jobs (Consumer / B2C residential pipeline) ----
@@ -262,11 +270,13 @@ export async function registerRoutes(
     res.json(job);
   });
   app.post("/api/jobs", async (req, res) => {
-    // createdAt is server-set so the client doesn't have to send it.
-    const body = { createdAt: new Date().toISOString(), ...req.body };
-    const parsed = insertJobSchema.safeParse(body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    res.json(await storage.createJob(parsed.data));
+    try {
+      // createdAt is server-set so the client doesn't have to send it.
+      const body = { createdAt: new Date().toISOString(), ...req.body };
+      const parsed = insertJobSchema.safeParse(body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      res.json(await storage.createJob(parsed.data));
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create job" }); }
   });
   app.patch("/api/jobs/:id", async (req, res) => {
     const parsed = insertJobSchema.partial().safeParse(req.body);
@@ -314,9 +324,11 @@ export async function registerRoutes(
     res.json({ ...f, submissionCount: submissions.length, submissions });
   });
   app.post("/api/forms", async (req, res) => {
-    const parsed = insertFormSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    res.json(await storage.createForm(parsed.data));
+    try {
+      const parsed = insertFormSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      res.json(await storage.createForm(parsed.data));
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create form" }); }
   });
   app.patch("/api/forms/:id", async (req, res) => {
     const parsed = insertFormSchema.partial().safeParse(req.body);
@@ -331,6 +343,7 @@ export async function registerRoutes(
     res.json({ ok: true });
   });
   app.post("/api/forms/:id/submit", async (req, res) => {
+    try {
     const form = await storage.getForm(Number(req.params.id));
     if (!form) return res.status(404).json({ error: "Not found" });
     const data = req.body?.data || req.body;
@@ -380,6 +393,7 @@ export async function registerRoutes(
       }
     }
     res.json({ ok: true, submissionId: sub.id, leadId });
+    } catch (e: any) { res.status(500).json({ error: e.message || "Form submission failed" }); }
   });
 
   // ---- Funnels ----
@@ -390,9 +404,11 @@ export async function registerRoutes(
     res.json(f);
   });
   app.post("/api/funnels", async (req, res) => {
-    const parsed = insertFunnelSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    res.json(await storage.createFunnel(parsed.data));
+    try {
+      const parsed = insertFunnelSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      res.json(await storage.createFunnel(parsed.data));
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create funnel" }); }
   });
   app.patch("/api/funnels/:id", async (req, res) => {
     const parsed = insertFunnelSchema.partial().safeParse(req.body);
@@ -510,9 +526,11 @@ export async function registerRoutes(
   // ---- Meetings ----
   app.get("/api/meetings", async (_req, res) => { res.json(await storage.getMeetings()); });
   app.post("/api/meetings", async (req, res) => {
-    const parsed = insertMeetingSchema.safeParse({ ...req.body, createdAt: new Date().toISOString() });
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    res.json(await storage.createMeeting(parsed.data));
+    try {
+      const parsed = insertMeetingSchema.safeParse({ ...req.body, createdAt: new Date().toISOString() });
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      res.json(await storage.createMeeting(parsed.data));
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create meeting" }); }
   });
   app.patch("/api/meetings/:id", async (req, res) => {
     const u = await storage.updateMeeting(Number(req.params.id), req.body);
@@ -540,15 +558,17 @@ export async function registerRoutes(
     res.json(slots.filter((s: any) => s.date === dateStr));
   });
   app.post("/api/booking/confirm", async (req, res) => {
-    const { datetime, name, email, company, notes } = req.body;
-    if (!datetime || !name || !email) return res.status(400).json({ error: "Missing required fields" });
-    const meeting = await storage.createMeeting({ leadName: name, leadEmail: email, leadCompany: company || "", title: "Discovery Call", datetime, duration: 30, status: "confirmed", notes: notes || "", createdAt: new Date().toISOString() });
     try {
-      await storage.createLead({ fullName: name, title: "", company: company || "", email, country: "United States", timezone: "America/New_York", language: "en", industry: "Unknown", companySize: "11-50", status: "meeting", referredBy: "Booking Page" });
-    } catch (e) {
-      console.error("Failed to create lead from booking:", e instanceof Error ? e.message : String(e));
-    }
-    res.json({ ok: true, meeting });
+      const { datetime, name, email, company, notes } = req.body;
+      if (!datetime || !name || !email) return res.status(400).json({ error: "Missing required fields" });
+      const meeting = await storage.createMeeting({ leadName: name, leadEmail: email, leadCompany: company || "", title: "Discovery Call", datetime, duration: 30, status: "confirmed", notes: notes || "", createdAt: new Date().toISOString() });
+      try {
+        await storage.createLead({ fullName: name, title: "", company: company || "", email, country: "United States", timezone: "America/New_York", language: "en", industry: "Unknown", companySize: "11-50", status: "meeting", referredBy: "Booking Page" });
+      } catch (e) {
+        console.error("Failed to create lead from booking:", e instanceof Error ? e.message : String(e));
+      }
+      res.json({ ok: true, meeting });
+    } catch (e: any) { res.status(500).json({ error: e.message || "Booking confirmation failed" }); }
   });
 
   // ---- SMTP Email Test ----
@@ -591,9 +611,11 @@ export async function registerRoutes(
   app.get("/api/reminders", async (_req, res) => { res.json(await storage.getReminders()); });
   app.get("/api/reminders/lead/:leadId", async (req, res) => { res.json(await storage.getRemindersByLead(Number(req.params.leadId))); });
   app.post("/api/reminders", async (req, res) => {
-    const { leadId, text, dueDate } = req.body;
-    if (!leadId || !text || !dueDate) return res.status(400).json({ error: "Missing fields" });
-    res.json(await storage.createReminder({ leadId, text, dueDate, done: false, createdAt: new Date().toISOString() }));
+    try {
+      const { leadId, text, dueDate } = req.body;
+      if (!leadId || !text || !dueDate) return res.status(400).json({ error: "Missing fields" });
+      res.json(await storage.createReminder({ leadId, text, dueDate, done: false, createdAt: new Date().toISOString() }));
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create reminder" }); }
   });
   app.patch("/api/reminders/:id", async (req, res) => {
     const u = await storage.updateReminder(Number(req.params.id), req.body);
@@ -606,92 +628,100 @@ export async function registerRoutes(
 
   // ---- Contact Enrichment (from Finder DB) ----
   app.post("/api/leads/enrich", async (req, res) => {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: "Email required" });
-    const domain = email.split("@")[1] || "";
-    const results = searchLeads({ q: domain, page: 1, limit: 5 });
-    const match = results.results.find(r => r.email.toLowerCase() === email.toLowerCase()) || results.results[0];
-    if (match) {
-      res.json({ found: true, fullName: match.fullName, title: match.title, company: match.company, industry: match.industry, companySize: match.companySize, country: match.country, location: match.location, verified: match.verified });
-    } else {
-      res.json({ found: false });
-    }
+    try {
+      const { email } = req.body;
+      if (!email) return res.status(400).json({ error: "Email required" });
+      const domain = email.split("@")[1] || "";
+      const results = searchLeads({ q: domain, page: 1, limit: 5 });
+      const match = results.results.find(r => r.email.toLowerCase() === email.toLowerCase()) || results.results[0];
+      if (match) {
+        res.json({ found: true, fullName: match.fullName, title: match.title, company: match.company, industry: match.industry, companySize: match.companySize, country: match.country, location: match.location, verified: match.verified });
+      } else {
+        res.json({ found: false });
+      }
+    } catch (e: any) { res.status(500).json({ error: e.message || "Enrichment failed" }); }
   });
 
   // ---- CSV Column Mapping ----
   app.post("/api/leads/import-mapped", async (req, res) => {
-    const { rows, mapping } = req.body as { rows: Record<string, string>[]; mapping: Record<string, string> };
-    if (!rows || !mapping) return res.status(400).json({ error: "Missing rows or mapping" });
-    let created = 0, skipped = 0;
-    for (const row of rows) {
-      const lead: Record<string, any> = {
-        fullName: row[mapping.fullName] || row[mapping.firstName] ? `${row[mapping.firstName] || ""} ${row[mapping.lastName] || ""}`.trim() : "Unknown",
-        title: row[mapping.title] || "",
-        company: row[mapping.company] || "",
-        email: row[mapping.email] || "",
-        phone: row[mapping.phone] || undefined,
-        country: row[mapping.country] || "United States",
-        city: row[mapping.city] || undefined,
-        state: row[mapping.state] || undefined,
-        timezone: "America/New_York",
-        language: "en",
-        industry: row[mapping.industry] || "Unknown",
-        companySize: row[mapping.companySize] || "11-50",
-        status: "new",
-      };
-      if (!lead.email) { skipped++; continue; }
-      if (mapping.fullName && row[mapping.fullName]) lead.fullName = row[mapping.fullName];
-      try {
-        await storage.createLead(lead as any);
-        created++;
-      } catch (e) {
-        console.error(`Failed to import lead ${lead.email}:`, e instanceof Error ? e.message : String(e));
-        skipped++;
+    try {
+      const { rows, mapping } = req.body as { rows: Record<string, string>[]; mapping: Record<string, string> };
+      if (!rows || !mapping) return res.status(400).json({ error: "Missing rows or mapping" });
+      let created = 0, skipped = 0;
+      for (const row of rows) {
+        const lead: Record<string, any> = {
+          fullName: row[mapping.fullName] || row[mapping.firstName] ? `${row[mapping.firstName] || ""} ${row[mapping.lastName] || ""}`.trim() : "Unknown",
+          title: row[mapping.title] || "",
+          company: row[mapping.company] || "",
+          email: row[mapping.email] || "",
+          phone: row[mapping.phone] || undefined,
+          country: row[mapping.country] || "United States",
+          city: row[mapping.city] || undefined,
+          state: row[mapping.state] || undefined,
+          timezone: "America/New_York",
+          language: "en",
+          industry: row[mapping.industry] || "Unknown",
+          companySize: row[mapping.companySize] || "11-50",
+          status: "new",
+        };
+        if (!lead.email) { skipped++; continue; }
+        if (mapping.fullName && row[mapping.fullName]) lead.fullName = row[mapping.fullName];
+        try {
+          await storage.createLead(lead as any);
+          created++;
+        } catch (e) {
+          console.error(`Failed to import lead ${lead.email}:`, e instanceof Error ? e.message : String(e));
+          skipped++;
+        }
       }
-    }
-    res.json({ created, skipped, total: rows.length });
+      res.json({ created, skipped, total: rows.length });
+    } catch (e: any) { res.status(500).json({ error: e.message || "CSV import failed" }); }
   });
 
   // ---- Waitlist (Pro/Enterprise signups) ----
   app.post("/api/waitlist", async (req, res) => {
-    const { email, plan } = req.body;
-    if (!email) return res.status(400).json({ error: "Email required" });
-    // Store as a lead with referral source = waitlist
     try {
-      await storage.createLead({
-        fullName: email.split("@")[0] || "Prospect",
-        title: "",
-        company: email.split("@")[1]?.split(".")[0] || "",
-        email,
-        country: "United States",
-        timezone: "America/New_York",
-        language: "en",
-        industry: "Unknown",
-        companySize: "11-50",
-        status: "new",
-        referredBy: `Waitlist: ${plan || "Pro"}`,
-      } as any);
-    } catch (e) {
-      if (e instanceof Error && !e.message.includes("UNIQUE")) {
-        console.error("Waitlist signup error:", e.message);
+      const { email, plan } = req.body;
+      if (!email) return res.status(400).json({ error: "Email required" });
+      // Store as a lead with referral source = waitlist
+      try {
+        await storage.createLead({
+          fullName: email.split("@")[0] || "Prospect",
+          title: "",
+          company: email.split("@")[1]?.split(".")[0] || "",
+          email,
+          country: "United States",
+          timezone: "America/New_York",
+          language: "en",
+          industry: "Unknown",
+          companySize: "11-50",
+          status: "new",
+          referredBy: `Waitlist: ${plan || "Pro"}`,
+        } as any);
+      } catch (e) {
+        if (e instanceof Error && !e.message.includes("UNIQUE")) {
+          console.error("Waitlist signup error:", e.message);
+        }
       }
-    }
-    res.json({ ok: true });
+      res.json({ ok: true });
+    } catch (e: any) { res.status(500).json({ error: e.message || "Waitlist signup failed" }); }
   });
 
   // ---- Lead Tags ----
   app.post("/api/leads/:id/tags", async (req, res) => {
-    const lead = await storage.getLead(Number(req.params.id));
-    if (!lead) return res.status(404).json({ error: "Not found" });
-    const { add, remove } = req.body as { add?: string; remove?: string };
-    const current = (lead.tags || "").split(",").filter(Boolean);
-    if (add && !current.includes(add)) current.push(add.trim().toLowerCase().replace(/[^a-z0-9-]/g, ""));
-    if (remove) {
-      const idx = current.indexOf(remove);
-      if (idx >= 0) current.splice(idx, 1);
-    }
-    const updated = await storage.updateLead(lead.id, { tags: current.filter(Boolean).join(",") });
-    res.json(updated);
+    try {
+      const lead = await storage.getLead(Number(req.params.id));
+      if (!lead) return res.status(404).json({ error: "Not found" });
+      const { add, remove } = req.body as { add?: string; remove?: string };
+      const current = (lead.tags || "").split(",").filter(Boolean);
+      if (add && !current.includes(add)) current.push(add.trim().toLowerCase().replace(/[^a-z0-9-]/g, ""));
+      if (remove) {
+        const idx = current.indexOf(remove);
+        if (idx >= 0) current.splice(idx, 1);
+      }
+      const updated = await storage.updateLead(lead.id, { tags: current.filter(Boolean).join(",") });
+      res.json(updated);
+    } catch (e: any) { res.status(500).json({ error: e.message || "Tag update failed" }); }
   });
 
   // ---- Campaign Stats ----
@@ -745,43 +775,45 @@ export async function registerRoutes(
 
   // ---- Campaign Multi-Step Scheduler ----
   app.post("/api/campaigns/:id/schedule-all", async (req, res) => {
-    const campaign = await storage.getCampaign(Number(req.params.id));
-    if (!campaign) return res.status(404).json({ error: "Not found" });
-    const campaignSteps = (await storage.getSteps(campaign.id)).sort((a, b) => a.stepOrder - b.stepOrder);
-    if (campaignSteps.length === 0) return res.status(400).json({ error: "No steps configured" });
+    try {
+      const campaign = await storage.getCampaign(Number(req.params.id));
+      if (!campaign) return res.status(404).json({ error: "Not found" });
+      const campaignSteps = (await storage.getSteps(campaign.id)).sort((a, b) => a.stepOrder - b.stepOrder);
+      if (campaignSteps.length === 0) return res.status(400).json({ error: "No steps configured" });
 
-    const allLeads = await storage.getLeads();
-    const eligible = allLeads.filter(l => !["won", "lost"].includes(l.status));
-    if (eligible.length === 0) return res.json({ ok: true, scheduled: 0 });
+      const allLeads = await storage.getLeads();
+      const eligible = allLeads.filter(l => !["won", "lost"].includes(l.status));
+      if (eligible.length === 0) return res.json({ ok: true, scheduled: 0 });
 
-    const now = Date.now();
-    let totalScheduled = 0;
+      const now = Date.now();
+      let totalScheduled = 0;
 
-    for (const step of campaignSteps) {
-      const sendAt = new Date(now + step.delayDays * 86400000);
-      const timestamp = sendAt.toISOString();
-      for (const lead of eligible) {
-        const subject = applyTokensFn(step.subject || campaign.name, lead);
-        const body = applyTokensFn(step.body, lead);
-        await storage.createMessage({
-          leadId: lead.id,
-          campaignId: campaign.id,
-          channel: step.channel,
-          direction: "outbound",
-          language: lead.language,
-          subject,
-          body,
-          scheduledFor: timestamp,
-          status: "scheduled",
-          createdAt: new Date().toISOString(),
-        });
-        totalScheduled++;
+      for (const step of campaignSteps) {
+        const sendAt = new Date(now + step.delayDays * 86400000);
+        const timestamp = sendAt.toISOString();
+        for (const lead of eligible) {
+          const subject = applyTokensFn(step.subject || campaign.name, lead);
+          const body = applyTokensFn(step.body, lead);
+          await storage.createMessage({
+            leadId: lead.id,
+            campaignId: campaign.id,
+            channel: step.channel,
+            direction: "outbound",
+            language: lead.language,
+            subject,
+            body,
+            scheduledFor: timestamp,
+            status: "scheduled",
+            createdAt: new Date().toISOString(),
+          });
+          totalScheduled++;
+        }
       }
-    }
 
-    // Mark campaign active
-    await storage.updateCampaign(campaign.id, { status: "active" });
-    res.json({ ok: true, scheduled: totalScheduled, steps: campaignSteps.length, leads: eligible.length });
+      // Mark campaign active
+      await storage.updateCampaign(campaign.id, { status: "active" });
+      res.json({ ok: true, scheduled: totalScheduled, steps: campaignSteps.length, leads: eligible.length });
+    } catch (e: any) { res.status(500).json({ error: e.message || "Campaign scheduling failed" }); }
   });
 
   // Shared token replacement (used by both run and schedule-all)
@@ -805,6 +837,7 @@ export async function registerRoutes(
 
   // ---- Campaign Execution ----
   app.post("/api/campaigns/:id/run", async (req, res) => {
+    try {
     const campaign = await storage.getCampaign(Number(req.params.id));
     if (!campaign) return res.status(404).json({ error: "Not found" });
 
@@ -857,6 +890,7 @@ export async function registerRoutes(
     }
 
     res.json({ ok: true, sent, queued, failed, total: eligible.length, smtpConfigured });
+    } catch (e: any) { res.status(500).json({ error: e.message || "Campaign execution failed" }); }
   });
 
   // ---- Seed demo data ----
@@ -897,9 +931,11 @@ export async function registerRoutes(
     res.json(a);
   });
   app.post("/api/automations", async (req, res) => {
-    const parsed = insertAutomationSchema.safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    res.json(await storage.createAutomation(parsed.data));
+    try {
+      const parsed = insertAutomationSchema.safeParse(req.body);
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      res.json(await storage.createAutomation(parsed.data));
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create automation" }); }
   });
   app.patch("/api/automations/:id", async (req, res) => {
     const parsed = insertAutomationSchema.partial().safeParse(req.body);
@@ -924,13 +960,15 @@ export async function registerRoutes(
     res.json(f);
   });
   app.post("/api/filters", async (req, res) => {
-    const parsed = insertSavedFilterSchema.safeParse({
-      ...req.body,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    res.json(await storage.createSavedFilter(parsed.data));
+    try {
+      const parsed = insertSavedFilterSchema.safeParse({
+        ...req.body,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      });
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      res.json(await storage.createSavedFilter(parsed.data));
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create filter" }); }
   });
   app.patch("/api/filters/:id", async (req, res) => {
     const parsed = insertSavedFilterSchema.partial().safeParse(req.body);
@@ -956,14 +994,16 @@ export async function registerRoutes(
     res.json({ ...w, deliveries });
   });
   app.post("/api/webhooks", async (req, res) => {
-    const { generateWebhookSecret } = await import("./lib/webhooks");
-    const parsed = insertWebhookSchema.safeParse({
-      ...req.body,
-      secret: generateWebhookSecret(),
-      createdAt: new Date().toISOString(),
-    });
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    res.json(await storage.createWebhook(parsed.data));
+    try {
+      const { generateWebhookSecret } = await import("./lib/webhooks");
+      const parsed = insertWebhookSchema.safeParse({
+        ...req.body,
+        secret: generateWebhookSecret(),
+        createdAt: new Date().toISOString(),
+      });
+      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      res.json(await storage.createWebhook(parsed.data));
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create webhook" }); }
   });
   app.patch("/api/webhooks/:id", async (req, res) => {
     const parsed = insertWebhookSchema.partial().safeParse(req.body);
