@@ -15,6 +15,10 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 // Country → IANA timezone + default language. Mirrors AddLeadDialog.
 const COUNTRY_DEFAULTS: Record<string, { tz: string; lang: string }> = {
   "United States": { tz: "America/New_York", lang: "en" },
@@ -84,7 +88,7 @@ export function EditLeadDialog({
     onError: () => toast({ title: "Couldn't save", description: "Check the required fields.", variant: "destructive" }),
   });
 
-  const valid = form.fullName.trim() && form.company.trim() && form.email.trim();
+  const valid = form.fullName.trim() && form.company.trim() && form.email.trim() && isValidEmail(form.email);
   const countries = isInternational ? Object.keys(COUNTRY_DEFAULTS) : ["United States"];
 
   return (

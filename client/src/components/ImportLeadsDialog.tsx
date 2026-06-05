@@ -10,6 +10,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Upload, FileText, AlertTriangle, CheckCircle2 } from "lucide-react";
 
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 // Country → IANA timezone + default language (mirrors Add/Edit lead).
 const COUNTRY_DEFAULTS: Record<string, { tz: string; lang: string }> = {
   "United States": { tz: "America/New_York", lang: "en" },
@@ -92,8 +96,8 @@ export function ImportLeadsDialog() {
       const cells = rows[r];
       const rec: Record<string, string> = {};
       headers.forEach((h, i) => { rec[h] = (cells[i] ?? "").trim(); });
-      // Required fields.
-      if (!rec.fullName || !rec.company || !rec.email) { bad++; continue; }
+      // Required fields and email validation.
+      if (!rec.fullName || !rec.company || !rec.email || !isValidEmail(rec.email)) { bad++; continue; }
       // Local mode forces the home country.
       const country = isInternational ? (rec.country || "United States") : "United States";
       out.push({
