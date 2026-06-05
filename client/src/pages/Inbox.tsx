@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonCard, SkeletonListItem } from "@/components/SkeletonCard";
 import { useToast } from "@/hooks/use-toast";
 import {
   Mail, Phone, Smartphone, MessageCircle, Linkedin, Clock, Send, Wand2, Languages,
@@ -37,7 +38,23 @@ export default function Inbox() {
     },
   });
 
-  if (isLoading) return <Skeleton className="h-96" />;
+  if (isLoading) return (
+    <div className="space-y-6">
+      <div>
+        <Skeleton className="h-7 w-40 mb-2" />
+        <Skeleton className="h-4 w-72" />
+      </div>
+      <div className="grid lg:grid-cols-[280px_1fr] gap-4 min-h-[560px]">
+        <Card className="overflow-hidden flex flex-col">
+          <div className="px-4 py-3 border-b border-border"><Skeleton className="h-4 w-28" /></div>
+          <div className="flex-1">
+            {[...Array(5)].map((_, i) => <SkeletonListItem key={i} />)}
+          </div>
+        </Card>
+        <SkeletonCard />
+      </div>
+    </div>
+  );
 
   const allLeads = leads ?? [];
   const leadMap = new Map(allLeads.map((l) => [l.id, l]));

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonCard } from "@/components/SkeletonCard";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -426,7 +427,17 @@ export default function Campaigns() {
 
   if (selected) return <CampaignDetail id={selected} onBack={() => setSelected(null)} />;
 
-  if (isLoading) return <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-28" />)}</div>;
+  if (isLoading) return (
+    <div className="space-y-6">
+      <div>
+        <Skeleton className="h-7 w-36 mb-2" />
+        <Skeleton className="h-4 w-64" />
+      </div>
+      <div className="space-y-3">
+        {[...Array(3)].map((_, i) => <SkeletonCard key={i} />)}
+      </div>
+    </div>
+  );
 
   const all = campaigns ?? [];
   // In local mode, only show campaigns that aren't multi-country.

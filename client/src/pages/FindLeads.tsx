@@ -259,7 +259,7 @@ export default function FindLeads() {
       <div className="flex items-center justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-bold">Lead Finder</h1>
+            <h1 className="text-2xl font-display font-bold tracking-tight">Lead Finder</h1>
             <Badge variant="secondary" className="text-xs gap-1">
               <Zap className="h-3 w-3 text-amber-500" /> AI-Powered
             </Badge>

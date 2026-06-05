@@ -3,8 +3,10 @@ import { Search, Send, LayoutDashboard, Layers, GitBranch, BarChart3, Globe, Sta
 
 export default function Landing() {
   const goToApp = () => { window.location.hash = '#/'; };
-  const [waitlistEmail, setWaitlistEmail] = useState("");
-  const [waitlistDone, setWaitlistDone] = useState(false);
+  const [proEmail, setProEmail] = useState("");
+  const [proDone, setProDone] = useState(false);
+  const [enterpriseEmail, setEnterpriseEmail] = useState("");
+  const [enterpriseDone, setEnterpriseDone] = useState(false);
 
   return (
     <div className="min-h-screen bg-gray-950 text-white">
@@ -368,22 +370,22 @@ export default function Landing() {
                   </li>
                 ))}
               </ul>
-              {waitlistDone ? (
+              {proDone ? (
                 <div className="text-center py-3 text-teal-400 text-sm font-semibold">You're on the list!</div>
               ) : (
                 <div className="flex gap-2">
                   <input
                     type="email"
-                    value={waitlistEmail}
-                    onChange={e => setWaitlistEmail(e.target.value)}
+                    value={proEmail}
+                    onChange={e => setProEmail(e.target.value)}
                     placeholder="your@email.com"
                     className="flex-1 bg-gray-800 border border-gray-700 text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-teal-500/50 placeholder:text-gray-600"
                   />
                   <button
                     onClick={() => {
-                      if (!waitlistEmail) return;
-                      fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: waitlistEmail, plan: 'Pro' }) })
-                        .then(() => setWaitlistDone(true));
+                      if (!proEmail) return;
+                      fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: proEmail, plan: 'Pro' }) })
+                        .then(() => setProDone(true));
                     }}
                     className="bg-gradient-to-r from-red-500 to-teal-500 text-white font-bold px-5 py-3 rounded-xl text-sm hover:opacity-90 transition-opacity whitespace-nowrap"
                   >
@@ -411,22 +413,22 @@ export default function Landing() {
                   </li>
                 ))}
               </ul>
-              {waitlistDone ? (
+              {enterpriseDone ? (
                 <div className="text-center py-3 text-teal-400 text-sm font-semibold">We'll be in touch!</div>
               ) : (
                 <div className="flex gap-2">
                   <input
                     type="email"
-                    value={waitlistEmail}
-                    onChange={e => setWaitlistEmail(e.target.value)}
+                    value={enterpriseEmail}
+                    onChange={e => setEnterpriseEmail(e.target.value)}
                     placeholder="your@email.com"
                     className="flex-1 bg-gray-800 border border-gray-700 text-white text-sm rounded-xl px-4 py-3 outline-none focus:border-teal-500/50 placeholder:text-gray-600"
                   />
                   <button
                     onClick={() => {
-                      if (!waitlistEmail) return;
-                      fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: waitlistEmail, plan: 'Enterprise' }) })
-                        .then(() => setWaitlistDone(true));
+                      if (!enterpriseEmail) return;
+                      fetch('/api/waitlist', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: enterpriseEmail, plan: 'Enterprise' }) })
+                        .then(() => setEnterpriseDone(true));
                     }}
                     className="border border-white/20 hover:bg-white/5 text-white font-bold px-5 py-3 rounded-xl text-sm transition-all whitespace-nowrap"
                   >

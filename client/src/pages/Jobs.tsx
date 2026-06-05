@@ -5,6 +5,7 @@ import type { Job } from "@shared/schema";
 import { JOB_STAGES, JOB_STAGE_META, formatUSD } from "@/lib/i18n-data";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonCard } from "@/components/SkeletonCard";
 import { AddJobDialog } from "@/components/AddJobDialog";
 import { JobDetailSheet } from "@/components/JobDetailSheet";
 import { useToast } from "@/hooks/use-toast";
@@ -61,8 +62,14 @@ export default function Jobs() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {JOB_STAGES.slice(0, 4).map((s) => <Skeleton key={s} className="h-80" />)}
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-7 w-24 mb-2" />
+          <Skeleton className="h-4 w-72" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {JOB_STAGES.slice(0, 4).map((s) => <SkeletonCard key={s} />)}
+        </div>
       </div>
     );
   }

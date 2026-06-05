@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { SkeletonCard } from "@/components/SkeletonCard";
 import {
   Plus, Trash2, ArrowLeft, Copy, Eye, Globe, EyeOff,
   TrendingUp, MousePointerClick, Save, Layers,
@@ -253,8 +254,8 @@ export default function Funnels() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Sales Funnels</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Build high-converting landing pages that feed leads straight into your pipeline</p>
+          <h1 className="text-2xl font-display font-bold tracking-tight">Sales Funnels</h1>
+          <p className="text-muted-foreground text-sm mt-1">Build high-converting landing pages that feed leads straight into your pipeline</p>
         </div>
         <Button onClick={() => setCreating(true)} className="gap-2">
           <Plus className="h-4 w-4" /> New Funnel
@@ -263,7 +264,7 @@ export default function Funnels() {
 
       {isLoading ? (
         <div className="grid gap-4">
-          {[1, 2].map(i => <div key={i} className="bg-card border border-border rounded-xl p-5 h-24 animate-pulse" />)}
+          {[1, 2].map(i => <SkeletonCard key={i} />)}
         </div>
       ) : funnelsList.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center border border-dashed border-border rounded-xl">

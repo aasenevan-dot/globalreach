@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { SkeletonCard } from "@/components/SkeletonCard";
 import {
   Plus, Trash2, ArrowLeft, Zap, ChevronRight, GitBranch,
   PlayCircle, PauseCircle, Save, ArrowRight, Filter, Settings2,
@@ -374,8 +375,8 @@ export default function Automations() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Automations</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Build workflows that run automatically when triggers fire</p>
+          <h1 className="text-2xl font-display font-bold tracking-tight">Automations</h1>
+          <p className="text-muted-foreground text-sm mt-1">Build workflows that run automatically when triggers fire</p>
         </div>
         <Button onClick={() => setCreating(true)} className="gap-2">
           <Plus className="h-4 w-4" /> New Automation
@@ -384,7 +385,7 @@ export default function Automations() {
 
       {isLoading ? (
         <div className="grid gap-4">
-          {[1, 2].map(i => <div key={i} className="bg-card border border-border rounded-xl p-5 h-20 animate-pulse" />)}
+          {[1, 2].map(i => <SkeletonCard key={i} />)}
         </div>
       ) : automationsList.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center border border-dashed border-border rounded-xl">

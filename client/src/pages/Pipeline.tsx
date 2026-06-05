@@ -7,6 +7,7 @@ import { COUNTRY_FLAG, flagForLang, STATUS_META } from "@/lib/i18n-data";
 import { scoreLead, scoreLabel } from "@/lib/scoring";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SkeletonCard } from "@/components/SkeletonCard";
 import { LeadDetailSheet } from "@/components/LeadDetailSheet";
 import { WinCelebrationDialog } from "@/components/WinCelebrationDialog";
 import { useToast } from "@/hooks/use-toast";
@@ -80,8 +81,14 @@ export default function Pipeline() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
-        {STAGES.map((s) => <Skeleton key={s} className="h-80" />)}
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-7 w-32 mb-2" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {STAGES.map((s) => <SkeletonCard key={s} />)}
+        </div>
       </div>
     );
   }

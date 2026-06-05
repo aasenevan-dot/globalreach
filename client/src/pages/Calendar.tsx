@@ -197,7 +197,7 @@ export default function CalendarPage() {
       <div className="flex items-center justify-between px-6 py-4 border-b border-border">
         <div className="flex items-center gap-3">
           <Calendar className="w-6 h-6 text-primary" />
-          <h1 className="text-xl font-semibold text-foreground">Calendar</h1>
+          <h1 className="text-2xl font-display font-bold tracking-tight">Calendar</h1>
         </div>
         <div className="flex gap-2">
           <button

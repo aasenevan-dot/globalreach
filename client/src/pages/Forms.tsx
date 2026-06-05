@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { SkeletonCard } from "@/components/SkeletonCard";
 import {
   Plus, GripVertical, Trash2, ChevronRight, Eye, Save, Copy,
   FileText, Users, ArrowLeft, CheckCircle2, Mail, Phone, AlignLeft, AlignJustify, ChevronDown,
@@ -299,8 +300,8 @@ export default function Forms() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Forms</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Build lead-capture forms and embed them anywhere</p>
+          <h1 className="text-2xl font-display font-bold tracking-tight">Forms</h1>
+          <p className="text-muted-foreground text-sm mt-1">Build lead-capture forms and embed them anywhere</p>
         </div>
         <Button onClick={() => setCreating(true)} className="gap-2">
           <Plus className="h-4 w-4" /> New Form
@@ -309,12 +310,7 @@ export default function Forms() {
 
       {isLoading ? (
         <div className="grid gap-4">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="bg-card border border-border rounded-xl p-5 animate-pulse">
-              <div className="h-4 w-40 bg-muted rounded mb-3" />
-              <div className="h-3 w-24 bg-muted rounded" />
-            </div>
-          ))}
+          {[1, 2, 3].map(i => <SkeletonCard key={i} />)}
         </div>
       ) : formsList.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center border border-dashed border-border rounded-xl">
