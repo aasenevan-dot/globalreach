@@ -13,25 +13,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
-  DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { AddLeadDialog } from "@/components/AddLeadDialog";
 import { ImportLeadsDialog } from "@/components/ImportLeadsDialog";
+import { BulkActionBar } from "@/components/BulkActionBar";
 import { scoreLead, scoreLabel } from "@/lib/scoring";
 import { LeadDetailSheet } from "@/components/LeadDetailSheet";
 import { TerritoryMap } from "@/components/TerritoryMap";
 import { STATE_PATHS } from "@/lib/us-topo";
 import { useToast } from "@/hooks/use-toast";
 import { stateName, usLocationLabel } from "@/lib/geo-data";
-import { Search, CheckCircle2, Clock, Download, Tag, Trash2, X, ChevronDown, MapPin, List, LayoutGrid, Map as MapIcon } from "lucide-react";
-
-const STATUS_KEYS = ["new", "contacted", "engaged", "meeting", "won", "lost"];
+import { Search, CheckCircle2, Clock, Download, X, MapPin, List, LayoutGrid, Map as MapIcon } from "lucide-react";
 
 // Quote a CSV cell when it contains a comma, quote, or newline.
 function csvCell(v: unknown): string {
@@ -51,7 +42,6 @@ export default function Leads() {
   const [selectedState, setSelectedState] = useState<string | null>(null); // FIPS id of a clicked state on the map
   const [selectedLead, setSelectedLead] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   const all = leads ?? [];
   // Local mode only ever shows domestic contacts.
@@ -114,7 +104,22 @@ export default function Leads() {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       toast({ title: "Leads deleted", description: `${data.deleted} lead${data.deleted === 1 ? "" : "s"} removed.` });
       setSelectedIds(new Set());
-      setConfirmBulkDelete(false);
+    },
+  });
+
+  const { data: campaigns } = useQuery<{ id: number; name: string }[]>({
+    queryKey: ["/api/campaigns"],
+  });
+
+  const enrollCampaignMut = useMutation({
+    mutationFn: async (campaignId: number) =>
+      apiRequest("POST", `/api/campaigns/${campaignId}/bulk-enroll`, { ids: [...selectedIds] }),
+    onSuccess: async (res: any) => {
+      const data = await res.json().catch(() => ({ enrolled: selectedIds.size }));
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+      toast({ title: "Enrolled in campaign", description: `${data.enrolled} lead${data.enrolled === 1 ? "" : "s"} enrolled.` });
+      setSelectedIds(new Set());
     },
   });
 
@@ -263,39 +268,6 @@ export default function Leads() {
           )}
         </div>
       </Card>
-
-      {/* Bulk action bar — appears when rows are selected */}
-      {visibleSelected.length > 0 && (
-        <Card className="p-3 flex flex-wrap items-center gap-3 border-primary/40 bg-primary/5" data-testid="bar-bulk-actions">
-          <span className="text-sm font-medium" data-testid="text-selected-count">
-            {visibleSelected.length} selected
-          </span>
-          <div className="flex-1" />
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5" disabled={setStatusMut.isPending} data-testid="button-bulk-status">
-                <Tag className="h-3.5 w-3.5" /> Set status <ChevronDown className="h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Move to stage</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {STATUS_KEYS.map((s) => (
-                <DropdownMenuItem key={s} onClick={() => setStatusMut.mutate(s)} data-testid={`menuitem-status-${s}`}>
-                  <span className={`mr-2 h-2 w-2 rounded-full inline-block ${STATUS_META[s]?.tone.split(" ")[0]}`} />
-                  {STATUS_META[s]?.label ?? s}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button variant="outline" size="sm" className="gap-1.5 text-rose-600 dark:text-rose-400" onClick={() => setConfirmBulkDelete(true)} data-testid="button-bulk-delete">
-            <Trash2 className="h-3.5 w-3.5" /> Delete
-          </Button>
-          <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => setSelectedIds(new Set())} data-testid="button-clear-selection">
-            <X className="h-3.5 w-3.5" /> Clear
-          </Button>
-        </Card>
-      )}
 
       {/* Lead table (also the fallback if Map view is active but mode switched to International) */}
       {(view === "list" || (view === "map" && isInternational)) && (
@@ -540,27 +512,16 @@ export default function Leads() {
 
       <LeadDetailSheet leadId={selectedLead} onClose={() => setSelectedLead(null)} onOpenLead={(id) => setSelectedLead(id)} />
 
-      <AlertDialog open={confirmBulkDelete} onOpenChange={setConfirmBulkDelete}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {visibleSelected.length} lead{visibleSelected.length === 1 ? "" : "s"}?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The selected contacts and their message history will be permanently removed. This can't be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-cancel-bulk-delete">Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              data-testid="button-confirm-bulk-delete"
-              className="bg-rose-600 hover:bg-rose-700 text-white"
-              onClick={(e) => { e.preventDefault(); deleteMut.mutate(); }}
-              disabled={deleteMut.isPending}
-            >
-              {deleteMut.isPending ? "Deleting…" : "Delete"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <BulkActionBar
+        selectedCount={visibleSelected.length}
+        onStatusChange={(status) => setStatusMut.mutate(status)}
+        onDelete={() => deleteMut.mutate()}
+        onEnrollCampaign={() => {
+          const first = campaigns?.[0];
+          if (first) enrollCampaignMut.mutate(first.id);
+        }}
+        isPending={setStatusMut.isPending || deleteMut.isPending || enrollCampaignMut.isPending}
+      />
     </div>
   );
 }
