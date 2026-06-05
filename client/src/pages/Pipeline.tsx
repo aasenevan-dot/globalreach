@@ -135,6 +135,9 @@ export default function Pipeline() {
           return (
             <div
               key={stage}
+              role="list"
+              aria-label={`${STATUS_META[stage]?.label ?? stage} stage — ${items.length} leads`}
+              aria-dropeffect={overStage === stage ? "move" : "none"}
               className={`rounded-lg border transition-colors ${isOver ? "border-primary bg-primary/5" : "border-border bg-muted/20"}`}
               onDragOver={(e) => { e.preventDefault(); setOverStage(stage); }}
               onDragLeave={(e) => { if (e.currentTarget === e.target) setOverStage(null); }}
@@ -153,6 +156,10 @@ export default function Pipeline() {
                 {items.map((l) => (
                   <Card
                     key={l.id}
+                    role="listitem"
+                    aria-roledescription="Draggable lead card"
+                    aria-grabbed={dragId === l.id}
+                    aria-label={`${l.fullName} at ${l.company}`}
                     draggable
                     onDragStart={() => setDragId(l.id)}
                     onDragEnd={() => { setDragId(null); setOverStage(null); }}
