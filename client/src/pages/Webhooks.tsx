@@ -193,7 +193,7 @@ export default function Webhooks() {
 
       <div className="space-y-4">
         {webhooks.length === 0 ? (
-          <Card className="p-8 text-center text-gray-500">
+          <Card className="p-8 text-center text-muted-foreground">
             <p>No webhooks configured yet</p>
             <p className="text-sm mt-1">Create a webhook to start receiving events</p>
           </Card>
