@@ -7,7 +7,6 @@ RUN npm ci --omit=dev
 
 # Copy built app
 COPY dist/ ./dist/
-COPY data.db ./data.db
 
 # Environment
 ENV NODE_ENV=production

@@ -23,9 +23,9 @@ import Database from "better-sqlite3";
 import { eq, inArray } from "drizzle-orm";
 import path from "node:path";
 
-// Use persistent disk path on Render, local path otherwise
-const DB_DIR = process.env.NODE_ENV === "production" && process.env.RENDER
-  ? "/opt/render/project/src/data"
+// Use persistent disk path on Render, local /tmp for Docker free tier, or local path
+const DB_DIR = process.env.RENDER
+  ? "/tmp"
   : path.resolve(__dirname, "..");
 const DB_PATH = path.join(DB_DIR, "data.db");
 const sqlite = new Database(DB_PATH);
