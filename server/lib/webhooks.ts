@@ -79,7 +79,7 @@ async function deliverWebhook(
         'X-Webhook-Timestamp': payload.timestamp,
       },
       body: payloadString,
-      timeout: 30000,
+      signal: AbortSignal.timeout(30000),
     });
 
     statusCode = response.status;

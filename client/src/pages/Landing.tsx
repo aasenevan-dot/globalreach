@@ -470,7 +470,7 @@ export default function Landing() {
             </div>
           </div>
           <div className="text-gray-500 text-sm">
-            &copy; 2025 GlobalReach. All rights reserved.
+            &copy; 2026 GlobalReach. All rights reserved.
           </div>
         </div>
       </footer>

@@ -102,7 +102,7 @@ export default function CalendarPage() {
       if (!res.ok) throw new Error("Failed to fetch settings");
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: (data: CalendarSettings) => {
       setSettingsForm(data);
     },
   } as any);

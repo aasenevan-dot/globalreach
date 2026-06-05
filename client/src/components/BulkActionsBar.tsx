@@ -42,7 +42,7 @@ import {
   X,
   Mail,
   Users,
-  Label as LabelIcon,
+  Tags as LabelIcon,
 } from "lucide-react";
 
 const STATUS_KEYS = ["new", "contacted", "engaged", "meeting", "won", "lost"];
