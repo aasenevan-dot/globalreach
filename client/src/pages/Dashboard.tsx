@@ -30,13 +30,14 @@ function Stat({ icon: Icon, label, value, hint }: any) {
 export default function Dashboard() {
   const { isInternational } = useMode();
   const { isConsumer } = useAudience();
-  const { data: leads, isLoading: l1 } = useQuery<Lead[]>({ queryKey: ["/api/leads"] });
-  const { data: campaigns, isLoading: l2 } = useQuery<Campaign[]>({ queryKey: ["/api/campaigns"] });
+  const { data: leads, isLoading: l1, error: e1 } = useQuery<Lead[]>({ queryKey: ["/api/leads"] });
+  const { data: campaigns, isLoading: l2, error: e2 } = useQuery<Campaign[]>({ queryKey: ["/api/campaigns"] });
   const { data: messages } = useQuery<Message[]>({ queryKey: ["/api/messages"] });
-  const { data: jobs, isLoading: l3 } = useQuery<Job[]>({ queryKey: ["/api/jobs"] });
+  const { data: jobs, isLoading: l3, error: e3 } = useQuery<Job[]>({ queryKey: ["/api/jobs"] });
   const { data: allReminders } = useQuery<Reminder[]>({ queryKey: ["/api/reminders"] });
 
   if (isConsumer) {
+    if (e3) return <div className="p-8 text-center text-red-500">Failed to load data. Please try again.</div>;
     if (l3) {
       return (
         <div className="space-y-6">
@@ -52,6 +53,8 @@ export default function Dashboard() {
     }
     return <ConsumerDashboard jobs={jobs ?? []} />;
   }
+
+  if (e1 || e2) return <div className="p-8 text-center text-red-500">Failed to load data. Please try again.</div>;
 
   if (l1 || l2) {
     return (

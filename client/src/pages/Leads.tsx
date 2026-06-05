@@ -34,7 +34,7 @@ function csvCell(v: unknown): string {
 export default function Leads() {
   const { isInternational } = useMode();
   const { toast } = useToast();
-  const { data: leads, isLoading } = useQuery<Lead[]>({ queryKey: ["/api/leads"] });
+  const { data: leads, isLoading, error } = useQuery<Lead[]>({ queryKey: ["/api/leads"] });
   const [q, setQ] = useState("");
   const [country, setCountry] = useState("all");
   const [language, setLanguage] = useState("all");
@@ -161,6 +161,8 @@ export default function Leads() {
     URL.revokeObjectURL(url);
     toast({ title: "Export ready", description: `${rows.length} lead${rows.length === 1 ? "" : "s"} downloaded as CSV.` });
   }
+
+  if (error) return <div className="p-8 text-center text-red-500">Failed to load data. Please try again.</div>;
 
   if (isLoading) {
     return (
