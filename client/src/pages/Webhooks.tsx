@@ -196,4 +196,76 @@ export default function Webhooks() {
                           : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                       }`}
                     >
-                      {webhook.active ? 'Active' : 'Inactive'
+                      {webhook.active ? 'Active' : 'Inactive'}
+                    </div>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Events: {JSON.parse(webhook.eventTypes || '[]').join(', ') || 'None'}
+                  </p>
+                  {webhook.lastTriggeredAt && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Last triggered: {new Date(webhook.lastTriggeredAt).toLocaleString()}
+                    </p>
+                  )}
+                  {webhook.failureCount > 0 && (
+                    <p className="text-xs text-red-500 mt-1">
+                      {webhook.failureCount} consecutive failure{webhook.failureCount > 1 ? 's' : ''}
+                    </p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => testMutation.mutate(webhook.id)}
+                    disabled={testMutation.isPending}
+                  >
+                    <PlayCircle className="w-4 h-4 mr-1" />
+                    Test
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toggleActiveMutation.mutate(webhook)}
+                    disabled={toggleActiveMutation.isPending}
+                  >
+                    {webhook.active ? <EyeOff className="w-4 h-4 mr-1" /> : <Eye className="w-4 h-4 mr-1" />}
+                    {webhook.active ? 'Disable' : 'Enable'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDeleteId(webhook.id)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          ))
+        )}
+      </div>
+
+      <AlertDialog open={deleteId !== null} onOpenChange={(open) => { if (!open) setDeleteId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete webhook?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove the webhook and all delivery logs.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="flex justify-end gap-2 mt-4">
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteId && deleteMutation.mutate(deleteId)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Delete
+            </AlertDialogAction>
+          </div>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

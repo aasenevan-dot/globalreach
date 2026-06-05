@@ -310,7 +310,7 @@ export default function FindLeads() {
               <MultiSelectFilter
                 label="Seniority"
                 icon={<Users className="h-3.5 w-3.5" />}
-                options={Object.keys(TITLE_LEVELS).map(
+                options={Object.keys(TITLE_LEVEL_LABELS).map(
                   (k) => TITLE_LEVEL_LABELS[k] || k
                 )}
                 selected={titleLevels.map((t) => TITLE_LEVEL_LABELS[t] || t)}

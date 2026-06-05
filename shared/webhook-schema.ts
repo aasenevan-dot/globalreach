@@ -47,6 +47,7 @@ export function verifySignature(
   signature: string,
   secret: string
 ): boolean {
+  const crypto = require("crypto");
   const expected = createSignature(payload, secret);
   return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
 }

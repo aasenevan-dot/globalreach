@@ -26,6 +26,7 @@ import Automations from "@/pages/Automations";
 import CalendarPage from "@/pages/Calendar";
 import Landing from "@/pages/Landing";
 import BookMeeting from "@/pages/BookMeeting";
+import Webhooks from "@/pages/Webhooks";
 import NotFound from "@/pages/not-found";
 
 // Standalone pages that don't use the CRM shell
@@ -72,6 +73,7 @@ function AppRouter() {
         <Route path="/automations" component={Automations} />
         <Route path="/calendar" component={CalendarPage} />
         <Route path="/settings" component={Settings} />
+        <Route path="/webhooks" component={Webhooks} />
         <Route component={NotFound} />
       </Switch>
     </AppShell>

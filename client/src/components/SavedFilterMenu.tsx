@@ -26,7 +26,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Trash2, BookmarkOpen, Lock } from "lucide-react";
+import { Save, Trash2, BookmarkOpen, Lock, Globe } from "lucide-react";
 
 export interface FilterConfig {
   searchText?: string;
@@ -162,7 +162,7 @@ export function SavedFilterMenu({
                       <div className="text-xs text-muted-foreground">{f.description}</div>
                     )}
                     <div className="text-xs text-muted-foreground">
-                      {f.operator} · {f.isPublic && <Lock className="h-2.5 w-2.5 inline mr-1" />}
+                      {f.operator} · {f.isPublic ? <Globe className="h-2.5 w-2.5 inline mr-1" /> : <Lock className="h-2.5 w-2.5 inline mr-1" />}
                       {f.isPublic ? "Shared" : "Private"}
                     </div>
                   </button>

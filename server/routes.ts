@@ -9,7 +9,7 @@ import {
   insertFormSchema, insertFormSubmissionSchema, insertFunnelSchema, insertAutomationSchema,
   insertMeetingSchema, insertSavedFilterSchema, insertWebhookSchema,
 } from "@shared/schema";
-import { generateWebhookSecret, fireWebhookEvent, verifySignature } from "./lib/webhooks";
+import { fireWebhookEvent } from "./lib/webhooks";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -130,7 +130,6 @@ export async function registerRoutes(
       return res.status(404).json({ error: "Campaign not found" });
     }
 
-    const { fireWebhooks } = await import("./lib/bulk-ops");
     const { bulkEnrollLeadsInCampaign } = await import("./lib/bulk-ops");
 
     const result = await bulkEnrollLeadsInCampaign(leadIds, campaignId);
@@ -138,7 +137,7 @@ export async function registerRoutes(
     // Fire webhooks for each enrolled lead
     if (result.enrolled > 0) {
       for (const leadId of leadIds.slice(0, result.enrolled)) {
-        fireWebhooks("campaign.lead_enrolled", {
+        fireWebhookEvent("campaign.lead_enrolled", {
           leadId,
           campaignId,
           timestamp: new Date().toISOString(),
@@ -165,14 +164,13 @@ export async function registerRoutes(
       return res.status(400).json({ error: "Subject or body is empty" });
     }
 
-    const { fireWebhooks } = await import("./lib/bulk-ops");
     const { bulkSendEmails } = await import("./lib/bulk-ops");
 
     const result = await bulkSendEmails(leadIds, subject, body);
 
     // Fire webhooks
     if (result.sent > 0) {
-      fireWebhooks("bulk.emails_sent", {
+      fireWebhookEvent("bulk.emails_sent", {
         count: result.sent,
         timestamp: new Date().toISOString(),
       }).catch(() => {});
@@ -193,14 +191,13 @@ export async function registerRoutes(
       return res.status(400).json({ error: "No leads specified" });
     }
 
-    const { fireWebhooks } = await import("./lib/bulk-ops");
     const { bulkUpdateTags } = await import("./lib/bulk-ops");
 
     const result = await bulkUpdateTags(leadIds, tagsToAdd, tagsToRemove);
 
     // Fire webhooks
     if (result.updated > 0) {
-      fireWebhooks("bulk.tags_updated", {
+      fireWebhookEvent("bulk.tags_updated", {
         count: result.updated,
         tagsAdded: tagsToAdd,
         tagsRemoved: tagsToRemove,
@@ -510,7 +507,8 @@ export async function registerRoutes(
   });
   app.delete("/api/meetings/:id", async (req, res) => {
     const ok = await storage.deleteMeeting(Number(req.params.id));
-    res.json({ ok });
+    if (!ok) return res.status(404).json({ error: "Not found" });
+    res.json({ ok: true });
   });
 
   // ---- Calendar Settings ----
@@ -944,7 +942,7 @@ export async function registerRoutes(
     res.json({ ...w, deliveries });
   });
   app.post("/api/webhooks", async (req, res) => {
-    const { generateWebhookSecret } = await import("./lib/bulk-ops");
+    const { generateWebhookSecret } = await import("./lib/webhooks");
     const parsed = insertWebhookSchema.safeParse({
       ...req.body,
       secret: generateWebhookSecret(),
@@ -970,6 +968,20 @@ export async function registerRoutes(
     const limit = Math.min(100, Math.max(1, parseInt((req.query.limit as string) || "50", 10)));
     const deliveries = await storage.getWebhookDeliveries(Number(req.params.id));
     res.json(deliveries.slice(-limit));
+  });
+  app.post("/api/webhooks/:id/test", async (req, res) => {
+    const webhook = await storage.getWebhook(Number(req.params.id));
+    if (!webhook) return res.status(404).json({ error: "Not found" });
+    try {
+      await fireWebhookEvent("test.webhook", {
+        webhookId: webhook.id,
+        testMessage: "This is a test event from GlobalReach",
+        timestamp: new Date().toISOString(),
+      });
+      res.json({ ok: true });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message || "Test delivery failed" });
+    }
   });
 
   return httpServer;
