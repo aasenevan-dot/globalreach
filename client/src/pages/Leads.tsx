@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMode } from "@/lib/mode";
@@ -72,12 +72,9 @@ export default function Leads() {
   }), [base, q, country, language, region]);
 
   // Reset visible row count when filters change so the user starts from the top.
-  const visibleRows = useMemo(() => {
-    setVisibleCount(ROWS_PER_PAGE);
-    return filtered;
-  }, [filtered]);
+  useEffect(() => { setVisibleCount(ROWS_PER_PAGE); }, [filtered]);
 
-  const displayedRows = visibleRows.slice(0, visibleCount);
+  const displayedRows = filtered.slice(0, visibleCount);
   const hasMore = visibleCount < filtered.length;
   const loadMore = useCallback(() => setVisibleCount((c) => c + ROWS_PER_PAGE), []);
 
