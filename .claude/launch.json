@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "globalreach",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["dist/index.cjs"],
+      "port": 5000
+    }
+  ]
+}
