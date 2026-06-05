@@ -176,6 +176,7 @@ export default function FindLeads() {
     const blob = new Blob([csv], { type: "text/csv" });
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
     a.download = "leads-export.csv"; a.click();
+    toast({ title: "Export ready", description: `${rows.length} contact${rows.length === 1 ? "" : "s"} downloaded as CSV.` });
   };
 
   const toggleSelect = (id: string) => {
