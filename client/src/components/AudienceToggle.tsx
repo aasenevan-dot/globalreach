@@ -9,10 +9,14 @@ export function AudienceToggle() {
   return (
     <div
       className="inline-flex items-center rounded-lg border border-border bg-muted/50 p-0.5"
+      role="radiogroup"
+      aria-label="Audience type"
       data-testid="toggle-audience"
     >
       <button
         onClick={() => setAudience("business")}
+        role="radio"
+        aria-checked={audience === "business"}
         data-testid="button-audience-business"
         className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
           audience === "business"
@@ -25,6 +29,8 @@ export function AudienceToggle() {
       </button>
       <button
         onClick={() => setAudience("consumer")}
+        role="radio"
+        aria-checked={audience === "consumer"}
         data-testid="button-audience-consumer"
         className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
           audience === "consumer"

@@ -48,7 +48,7 @@ export function BulkActionBar({
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 flex items-center justify-between shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 bg-card border-t border-border p-4 flex items-center justify-between shadow-lg" role="toolbar" aria-label="Bulk actions for selected leads">
         <Badge variant="secondary" className="text-sm">
           {selectedCount} selected
         </Badge>
@@ -79,7 +79,7 @@ export function BulkActionBar({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="icon" disabled={isPending}>
+              <Button variant="outline" size="icon" disabled={isPending} aria-label="More actions">
                 <MoreVertical className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>

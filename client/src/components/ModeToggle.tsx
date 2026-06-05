@@ -8,10 +8,14 @@ export function ModeToggle() {
   return (
     <div
       className="inline-flex items-center rounded-lg border border-border bg-muted/50 p-0.5"
+      role="radiogroup"
+      aria-label="Market mode"
       data-testid="toggle-mode"
     >
       <button
         onClick={() => setMode("local")}
+        role="radio"
+        aria-checked={mode === "local"}
         data-testid="button-mode-local"
         className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
           mode === "local"
@@ -24,6 +28,8 @@ export function ModeToggle() {
       </button>
       <button
         onClick={() => setMode("international")}
+        role="radio"
+        aria-checked={mode === "international"}
         data-testid="button-mode-international"
         className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
           mode === "international"
