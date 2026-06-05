@@ -56,7 +56,19 @@ export function EditLeadDialog({
     });
   }, [lead.id]);
 
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const touch = (k: string) => setTouched((t) => ({ ...t, [k]: true }));
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const nameError = touched.fullName && !form.fullName.trim() ? "This field is required" : "";
+  const companyError = touched.company && !form.company.trim() ? "This field is required" : "";
+  const emailError = touched.email
+    ? !form.email.trim()
+      ? "This field is required"
+      : !isValidEmail(form.email)
+      ? "Please enter a valid email address"
+      : ""
+    : "";
 
   const update = useMutation({
     mutationFn: async () => {
@@ -100,7 +112,8 @@ export function EditLeadDialog({
         <div className="grid grid-cols-2 gap-3 py-2">
           <div className="col-span-2 sm:col-span-1 space-y-1.5">
             <Label htmlFor="el-name">Full name *</Label>
-            <Input id="el-name" data-testid="input-edit-lead-name" value={form.fullName} onChange={(e) => set("fullName", e.target.value)} />
+            <Input id="el-name" data-testid="input-edit-lead-name" value={form.fullName} onChange={(e) => set("fullName", e.target.value)} onBlur={() => touch("fullName")} className={nameError ? "border-red-500 focus-visible:ring-red-500" : ""} />
+            {nameError && <p className="text-xs text-red-500">{nameError}</p>}
           </div>
           <div className="col-span-2 sm:col-span-1 space-y-1.5">
             <Label htmlFor="el-title">Title</Label>
@@ -108,11 +121,13 @@ export function EditLeadDialog({
           </div>
           <div className="col-span-2 sm:col-span-1 space-y-1.5">
             <Label htmlFor="el-company">Company *</Label>
-            <Input id="el-company" data-testid="input-edit-lead-company" value={form.company} onChange={(e) => set("company", e.target.value)} />
+            <Input id="el-company" data-testid="input-edit-lead-company" value={form.company} onChange={(e) => set("company", e.target.value)} onBlur={() => touch("company")} className={companyError ? "border-red-500 focus-visible:ring-red-500" : ""} />
+            {companyError && <p className="text-xs text-red-500">{companyError}</p>}
           </div>
           <div className="col-span-2 sm:col-span-1 space-y-1.5">
             <Label htmlFor="el-email">Email *</Label>
-            <Input id="el-email" data-testid="input-edit-lead-email" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
+            <Input id="el-email" data-testid="input-edit-lead-email" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} onBlur={() => touch("email")} className={emailError ? "border-red-500 focus-visible:ring-red-500" : ""} />
+            {emailError && <p className="text-xs text-red-500">{emailError}</p>}
           </div>
           <div className="col-span-2 sm:col-span-1 space-y-1.5">
             <Label htmlFor="el-phone">Phone</Label>
@@ -154,7 +169,7 @@ export function EditLeadDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-          <Button data-testid="button-update-lead" disabled={!valid || update.isPending} onClick={() => update.mutate()}>
+          <Button data-testid="button-update-lead" disabled={!valid || update.isPending} onClick={() => { setTouched({ fullName: true, company: true, email: true }); if (valid) update.mutate(); }}>
             {update.isPending ? "Saving…" : "Save changes"}
           </Button>
         </DialogFooter>

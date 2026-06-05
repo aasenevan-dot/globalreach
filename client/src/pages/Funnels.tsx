@@ -88,12 +88,18 @@ function FunnelEditor({ funnel, onClose }: { funnel?: Funnel; onClose: () => voi
   const [published, setPublished] = useState(funnel?.published || false);
   const [slug, setSlug] = useState(funnel?.slug || "");
 
+  const [saveAttempted, setSaveAttempted] = useState(false);
+
   const { data: forms = [] } = useQuery<Form[]>({ queryKey: ["/api/forms"] });
+
+  const nameError = saveAttempted && !name.trim() ? "This field is required" : "";
+  const headlineError = saveAttempted && !headline.trim() ? "This field is required" : "";
+  const funnelValid = name.trim() && headline.trim();
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       const computedSlug = slug || slugify(name || headline || "funnel");
-      const payload = { name: name || headline || "Untitled Funnel", headline, subheadline, bodyText, ctaText, theme, formId, published, slug: computedSlug, createdAt: funnel?.createdAt || new Date().toISOString(), views: funnel?.views || 0, conversions: funnel?.conversions || 0 };
+      const payload = { name: name.trim(), headline: headline.trim(), subheadline, bodyText, ctaText, theme, formId, published, slug: computedSlug, createdAt: funnel?.createdAt || new Date().toISOString(), views: funnel?.views || 0, conversions: funnel?.conversions || 0 };
       const url = funnel ? `/api/funnels/${funnel.id}` : "/api/funnels";
       const method = funnel ? "PATCH" : "POST";
       const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -113,12 +119,15 @@ function FunnelEditor({ funnel, onClose }: { funnel?: Funnel; onClose: () => voi
     <div className="space-y-4">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" onClick={onClose}><ArrowLeft className="h-4 w-4" /></Button>
-        <Input
-          value={name}
-          onChange={e => setName(e.target.value)}
-          placeholder="Funnel name…"
-          className="text-lg font-semibold h-10 border-none shadow-none px-0 focus-visible:ring-0 max-w-xs"
-        />
+        <div className="max-w-xs">
+          <Input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Funnel name…"
+            className={`text-lg font-semibold h-10 border-none shadow-none px-0 focus-visible:ring-0 ${nameError ? "border-b-2 !border-red-500" : ""}`}
+          />
+          {nameError && <p className="text-xs text-red-500 mt-0.5">{nameError}</p>}
+        </div>
         <div className="ml-auto flex items-center gap-2">
           {funnel && (
             <>
@@ -146,7 +155,7 @@ function FunnelEditor({ funnel, onClose }: { funnel?: Funnel; onClose: () => voi
           >
             {published ? <><EyeOff className="h-3.5 w-3.5" /> Unpublish</> : <><Globe className="h-3.5 w-3.5" /> Publish</>}
           </Button>
-          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending} className="gap-2">
+          <Button onClick={() => { setSaveAttempted(true); if (funnelValid) saveMutation.mutate(); }} disabled={saveMutation.isPending} className="gap-2">
             <Save className="h-3.5 w-3.5" /> {saveMutation.isPending ? "Saving…" : "Save"}
           </Button>
         </div>
@@ -158,7 +167,10 @@ function FunnelEditor({ funnel, onClose }: { funnel?: Funnel; onClose: () => voi
           <div className="space-y-3">
             <label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Content</label>
             <div className="space-y-2">
-              <Input value={headline} onChange={e => setHeadline(e.target.value)} placeholder="Main headline" className="font-medium" />
+              <div>
+                <Input value={headline} onChange={e => setHeadline(e.target.value)} placeholder="Main headline *" className={`font-medium ${headlineError ? "border-red-500 focus-visible:ring-red-500" : ""}`} />
+                {headlineError && <p className="text-xs text-red-500 mt-1">{headlineError}</p>}
+              </div>
               <Input value={subheadline} onChange={e => setSubheadline(e.target.value)} placeholder="Subheadline (optional)" />
               <textarea
                 value={bodyText}

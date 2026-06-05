@@ -34,6 +34,17 @@ export default function Webhooks() {
   const [formData, setFormData] = useState({ url: '', eventTypes: [] as string[] });
   const [showSecret, setShowSecret] = useState<{ [key: number]: boolean }>({});
   const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+
+  const isValidWebhookUrl = (url: string) => /^https:\/\/.+/.test(url);
+  const urlError = submitAttempted
+    ? !formData.url.trim()
+      ? "This field is required"
+      : !isValidWebhookUrl(formData.url)
+      ? "Webhook URL must start with https://"
+      : ""
+    : "";
+  const eventsError = submitAttempted && formData.eventTypes.length === 0 ? "Select at least one event type" : "";
 
   const { data: webhooks = [] } = useQuery({
     queryKey: ['/api/webhooks'],
@@ -57,6 +68,7 @@ export default function Webhooks() {
       queryClient.invalidateQueries({ queryKey: ['/api/webhooks'] });
       setIsOpen(false);
       setFormData({ url: '', eventTypes: [] });
+      setSubmitAttempted(false);
     },
   });
 
@@ -97,8 +109,8 @@ export default function Webhooks() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.url || formData.eventTypes.length === 0) {
-      alert('Please enter URL and select at least one event type');
+    setSubmitAttempted(true);
+    if (!formData.url.trim() || !isValidWebhookUrl(formData.url) || formData.eventTypes.length === 0) {
       return;
     }
     createMutation.mutate({
@@ -145,16 +157,18 @@ export default function Webhooks() {
             </DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="url">Webhook URL</Label>
+                <Label htmlFor="url">Webhook URL *</Label>
                 <Input
                   id="url"
                   placeholder="https://example.com/webhooks"
                   value={formData.url}
                   onChange={e => setFormData(prev => ({ ...prev, url: e.target.value }))}
+                  className={urlError ? "border-red-500 focus-visible:ring-red-500" : ""}
                 />
+                {urlError && <p className="text-xs text-red-500 mt-1">{urlError}</p>}
               </div>
               <div>
-                <Label>Event Types</Label>
+                <Label>Event Types *</Label>
                 <div className="space-y-2 mt-2">
                   {EVENT_TYPES.map(event => (
                     <div key={event.value} className="flex items-center gap-2">
@@ -167,6 +181,7 @@ export default function Webhooks() {
                     </div>
                   ))}
                 </div>
+                {eventsError && <p className="text-xs text-red-500 mt-1">{eventsError}</p>}
               </div>
               <Button type="submit" disabled={createMutation.isPending}>
                 {createMutation.isPending ? 'Creating...' : 'Create Webhook'}
