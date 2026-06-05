@@ -211,6 +211,7 @@ export default function Leads() {
           <Input
             data-testid="input-search-leads"
             placeholder="Search name, company, title…"
+            aria-label="Search leads by name, company, or title"
             className="pl-9"
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -250,9 +251,11 @@ export default function Leads() {
           </>
         )}
         {/* List vs Territory view toggle */}
-        <div className="flex items-center rounded-md border border-border p-0.5">
+        <div className="flex items-center rounded-md border border-border p-0.5" role="radiogroup" aria-label="View mode">
           <button
             type="button"
+            role="radio"
+            aria-checked={view === "list"}
             data-testid="button-view-list"
             onClick={() => setView("list")}
             className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors ${view === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover-elevate"}`}
@@ -261,6 +264,8 @@ export default function Leads() {
           </button>
           <button
             type="button"
+            role="radio"
+            aria-checked={view === "territory"}
             data-testid="button-view-territory"
             onClick={() => setView("territory")}
             className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors ${view === "territory" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover-elevate"}`}
@@ -270,6 +275,8 @@ export default function Leads() {
           {!isInternational && (
             <button
               type="button"
+              role="radio"
+              aria-checked={view === "map"}
               data-testid="button-view-map"
               onClick={() => setView("map")}
               className={`flex items-center gap-1.5 rounded px-2.5 py-1 text-xs font-medium transition-colors ${view === "map" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover-elevate"}`}
@@ -284,7 +291,7 @@ export default function Leads() {
       {(view === "list" || (view === "map" && isInternational)) && (
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm" aria-label="Leads database">
             <thead>
               <tr className="border-b border-border text-left text-muted-foreground">
                 <th className="px-4 py-3 w-10">
@@ -485,6 +492,7 @@ export default function Leads() {
                         type="button"
                         onClick={() => setSelectedState(null)}
                         className="text-muted-foreground hover:text-foreground"
+                        aria-label="Clear state selection"
                         data-testid="button-clear-state"
                       >
                         <X className="h-4 w-4" />
