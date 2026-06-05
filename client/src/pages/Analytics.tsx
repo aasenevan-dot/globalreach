@@ -37,13 +37,15 @@ function Stat({ icon: Icon, label, value, hint }: { icon: any; label: string; va
 export default function Analytics() {
   const { isInternational } = useMode();
   const { isConsumer } = useAudience();
-  const { data: leads, isLoading } = useQuery<Lead[]>({ queryKey: ["/api/leads"] });
+  const { data: leads, isLoading, error } = useQuery<Lead[]>({ queryKey: ["/api/leads"] });
   const { data: campaigns } = useQuery<Campaign[]>({ queryKey: ["/api/campaigns"] });
   const { data: messages } = useQuery<Message[]>({ queryKey: ["/api/messages"] });
   const { data: jobs } = useQuery<Job[]>({ queryKey: ["/api/jobs"] });
   const { data: forms } = useQuery<Form[]>({ queryKey: ["/api/forms"] });
   const { data: funnels } = useQuery<Funnel[]>({ queryKey: ["/api/funnels"] });
   const { data: automations } = useQuery<Automation[]>({ queryKey: ["/api/automations"] });
+
+  if (error) return <div className="p-8 text-center text-red-500">Failed to load data. Please try again.</div>;
 
   if (isLoading) {
     return (

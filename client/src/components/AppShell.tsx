@@ -78,11 +78,11 @@ export function AppShell({ children, onOpenSearch }: { children: React.ReactNode
             <Logo className="h-7 w-7 text-primary" />
             <span className="font-display font-bold text-lg tracking-tight">GlobalReach</span>
           </div>
-          <button className="md:hidden text-muted-foreground hover:text-foreground" onClick={() => setMobileOpen(false)}>
+          <button className="md:hidden text-muted-foreground hover:text-foreground" onClick={() => setMobileOpen(false)} aria-label="Close navigation menu">
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto" aria-label="Main navigation">
           {NAV.map((item) => {
             const active = location === item.href;
             const Icon = item.icon;
@@ -139,8 +139,8 @@ export function AppShell({ children, onOpenSearch }: { children: React.ReactNode
     <div className="flex min-h-screen bg-background text-foreground">
       {/* Mobile overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} />
+        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="Navigation menu">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMobileOpen(false)} aria-hidden="true" />
           <aside className="absolute left-0 top-0 bottom-0 w-72 flex flex-col bg-sidebar border-r border-sidebar-border shadow-2xl z-50 animate-in slide-in-from-left duration-200">
             <SidebarContent />
           </aside>
@@ -156,7 +156,7 @@ export function AppShell({ children, onOpenSearch }: { children: React.ReactNode
       <div className="flex-1 flex flex-col min-w-0">
         <header className="flex items-center justify-between gap-4 h-16 px-4 md:px-6 border-b border-border bg-background/80 backdrop-blur sticky top-0 z-10">
           <div className="flex items-center gap-2">
-            <button className="md:hidden p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" onClick={() => setMobileOpen(true)}>
+            <button className="md:hidden p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors" onClick={() => setMobileOpen(true)} aria-label="Open navigation menu">
               <Menu className="h-5 w-5" />
             </button>
             <div className="hidden md:block text-sm text-muted-foreground">
@@ -168,6 +168,7 @@ export function AppShell({ children, onOpenSearch }: { children: React.ReactNode
               <button
                 onClick={onOpenSearch}
                 className="hidden md:flex items-center gap-2 text-xs text-muted-foreground bg-muted/60 hover:bg-muted border border-border rounded-lg px-3 py-1.5 transition-colors w-48"
+                aria-label="Open search (Ctrl+K)"
               >
                 <Search className="h-3.5 w-3.5" />
                 <span className="flex-1 text-left">Search...</span>

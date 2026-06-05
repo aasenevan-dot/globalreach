@@ -393,7 +393,7 @@ function RunCampaignDialog({ campaign, onClose }: { campaign: Campaign; onClose:
 
 export default function Campaigns() {
   const { isInternational } = useMode();
-  const { data: campaigns, isLoading } = useQuery<Campaign[]>({ queryKey: ["/api/campaigns"] });
+  const { data: campaigns, isLoading, error } = useQuery<Campaign[]>({ queryKey: ["/api/campaigns"] });
   const [selected, setSelected] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Campaign | null>(null);
   const [runTarget, setRunTarget] = useState<Campaign | null>(null);
@@ -426,6 +426,8 @@ export default function Campaigns() {
   });
 
   if (selected) return <CampaignDetail id={selected} onBack={() => setSelected(null)} />;
+
+  if (error) return <div className="p-8 text-center text-red-500">Failed to load data. Please try again.</div>;
 
   if (isLoading) return (
     <div className="space-y-6">

@@ -29,7 +29,7 @@ const STAGE_ACCENT: Record<string, string> = {
 export default function Pipeline() {
   const { isInternational } = useMode();
   const { toast } = useToast();
-  const { data: leads, isLoading } = useQuery<Lead[]>({ queryKey: ["/api/leads"] });
+  const { data: leads, isLoading, error } = useQuery<Lead[]>({ queryKey: ["/api/leads"] });
   const [selectedLead, setSelectedLead] = useState<number | null>(null);
   const [dragId, setDragId] = useState<number | null>(null);
   const [overStage, setOverStage] = useState<string | null>(null);
@@ -78,6 +78,8 @@ export default function Pipeline() {
       setWonLead({ ...lead, status: "won" });
     }
   }
+
+  if (error) return <div className="p-8 text-center text-red-500">Failed to load data. Please try again.</div>;
 
   if (isLoading) {
     return (
