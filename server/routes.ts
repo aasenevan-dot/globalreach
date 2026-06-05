@@ -260,7 +260,9 @@ export async function registerRoutes(
           }
           await storage.incrementAutomationRunCount(auto.id);
         }
-      } catch { /* lead creation is best-effort */ }
+      } catch (e) {
+        console.error("Failed to create lead from form submission:", e instanceof Error ? e.message : String(e));
+      }
     }
     res.json({ ok: true, submissionId: sub.id, leadId });
   });
@@ -425,7 +427,11 @@ export async function registerRoutes(
     const { datetime, name, email, company, notes } = req.body;
     if (!datetime || !name || !email) return res.status(400).json({ error: "Missing required fields" });
     const meeting = await storage.createMeeting({ leadName: name, leadEmail: email, leadCompany: company || "", title: "Discovery Call", datetime, duration: 30, status: "confirmed", notes: notes || "", createdAt: new Date().toISOString() });
-    try { await storage.createLead({ fullName: name, title: "", company: company || "", email, country: "United States", timezone: "America/New_York", language: "en", industry: "Unknown", companySize: "11-50", status: "meeting", referredBy: "Booking Page" }); } catch {}
+    try {
+      await storage.createLead({ fullName: name, title: "", company: company || "", email, country: "United States", timezone: "America/New_York", language: "en", industry: "Unknown", companySize: "11-50", status: "meeting", referredBy: "Booking Page" });
+    } catch (e) {
+      console.error("Failed to create lead from booking:", e instanceof Error ? e.message : String(e));
+    }
     res.json({ ok: true, meeting });
   });
 
@@ -519,7 +525,13 @@ export async function registerRoutes(
       };
       if (!lead.email) { skipped++; continue; }
       if (mapping.fullName && row[mapping.fullName]) lead.fullName = row[mapping.fullName];
-      try { await storage.createLead(lead as any); created++; } catch { skipped++; }
+      try {
+        await storage.createLead(lead as any);
+        created++;
+      } catch (e) {
+        console.error(`Failed to import lead ${lead.email}:`, e instanceof Error ? e.message : String(e));
+        skipped++;
+      }
     }
     res.json({ created, skipped, total: rows.length });
   });
@@ -543,7 +555,11 @@ export async function registerRoutes(
         status: "new",
         referredBy: `Waitlist: ${plan || "Pro"}`,
       } as any);
-    } catch { /* duplicate email, that's fine */ }
+    } catch (e) {
+      if (e instanceof Error && !e.message.includes("UNIQUE")) {
+        console.error("Waitlist signup error:", e.message);
+      }
+    }
     res.json({ ok: true });
   });
 

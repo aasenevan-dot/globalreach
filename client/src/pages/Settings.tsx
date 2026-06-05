@@ -31,6 +31,10 @@ const COUNTRY_TZ: Record<string, string[]> = {
   Ireland: ["Europe/Dublin"],
 };
 
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 interface CalSet { smtpHost: string; smtpPort: number; smtpUser: string; smtpPass: string; smtpFromName: string; smtpFromEmail: string; smtpSecure: boolean; }
 
 export default function Settings() {
@@ -94,6 +98,19 @@ export default function Settings() {
       return r.json();
     },
     onSuccess: (d) => { setSmtpStatus(d.ok ? "ok" : "fail"); toast({ title: d.ok ? "Connection successful!" : "Connection failed: " + d.error, variant: d.ok ? "default" : "destructive" }); },
+  });
+
+  const savePassword = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/calendar-settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appPassword }) });
+      if (!r.ok) throw new Error("Failed to save password");
+      return r.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/calendar-settings"] });
+      toast({ title: appPassword ? "Password set — login required on next visit" : "Password removed — app is open" });
+    },
+    onError: () => toast({ title: "Failed to save password", variant: "destructive" }),
   });
 
   const seedMutation = useMutation({
@@ -226,7 +243,10 @@ export default function Settings() {
           </div>
           <div className="space-y-1.5">
             <Label>Port</Label>
-            <Input type="number" placeholder="587" value={smtp.smtpPort} onChange={e => setSmtp(s => ({ ...s, smtpPort: Number(e.target.value) }))} />
+            <Input type="number" placeholder="587" min="1" max="65535" value={smtp.smtpPort} onChange={e => {
+              const port = Number(e.target.value);
+              if (!isNaN(port) && port >= 1 && port <= 65535) setSmtp(s => ({ ...s, smtpPort: port }));
+            }} />
           </div>
           <div className="space-y-1.5">
             <Label>Username / Email</Label>
@@ -242,7 +262,15 @@ export default function Settings() {
           </div>
           <div className="space-y-1.5">
             <Label>From Email</Label>
-            <Input placeholder="sales@yourcompany.com" value={smtp.smtpFromEmail} onChange={e => setSmtp(s => ({ ...s, smtpFromEmail: e.target.value }))} />
+            <Input
+              placeholder="sales@yourcompany.com"
+              value={smtp.smtpFromEmail}
+              onChange={e => setSmtp(s => ({ ...s, smtpFromEmail: e.target.value }))}
+              className={smtp.smtpFromEmail && !isValidEmail(smtp.smtpFromEmail) ? "border-red-500" : ""}
+            />
+            {smtp.smtpFromEmail && !isValidEmail(smtp.smtpFromEmail) && (
+              <p className="text-xs text-red-500">Invalid email format</p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3 pt-1">
@@ -301,14 +329,17 @@ export default function Settings() {
             placeholder="Leave empty to disable"
             value={appPassword}
             onChange={e => setAppPassword(e.target.value)}
+            minLength={appPassword ? 6 : 0}
           />
-          <Button onClick={() => {
-            fetch("/api/calendar-settings", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ appPassword }) })
-              .then(() => toast({ title: appPassword ? "Password set — login required on next visit" : "Password removed — app is open" }));
-          }}>
-            Save
+          <Button onClick={() => savePassword.mutate()} disabled={savePassword.isPending}>
+            {savePassword.isPending ? "Saving…" : "Save"}
           </Button>
         </div>
+        {appPassword && appPassword.length < 6 && (
+          <div className="flex items-center gap-2 text-xs text-amber-500">
+            <AlertCircle className="h-3.5 w-3.5" /> Password should be at least 6 characters
+          </div>
+        )}
         {appPassword && (
           <div className="flex items-center gap-2 text-xs text-emerald-500">
             <Lock className="h-3.5 w-3.5" /> Password gate active

@@ -31,7 +31,7 @@ export default function Landing() {
             </button>
             <button
               onClick={goToApp}
-              className="bg-gradient-to-r from-red-500 to-teal-500 hover:from-teal-500 hover:to-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all flex items-center gap-1"
+              className="bg-gradient-to-r from-red-500 to-teal-500 hover:from-teal-500 hover:to-red-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-all flex items-center gap-1"
             >
               Open App <ChevronRight className="w-4 h-4" />
             </button>
@@ -59,7 +59,7 @@ export default function Landing() {
             {/* H1 */}
             <h1 className="text-5xl font-black text-white leading-tight mb-6">
               Find, Reach &amp; Close<br />
-              <span className="bg-gradient-to-r from-teal-400 to-blue-400 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-red-400 to-teal-400 bg-clip-text text-transparent">
                 Every Deal — On Autopilot
               </span>
             </h1>
@@ -73,7 +73,7 @@ export default function Landing() {
             <div className="flex items-center justify-center gap-4 flex-wrap">
               <button
                 onClick={goToApp}
-                className="bg-gradient-to-r from-red-500 to-teal-500 hover:from-teal-500 hover:to-blue-500 text-white font-bold px-8 py-4 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-red-900/30"
+                className="bg-gradient-to-r from-red-500 to-teal-500 hover:from-teal-500 hover:to-red-500 text-white font-bold px-8 py-4 rounded-xl transition-all flex items-center gap-2 shadow-lg shadow-red-900/30"
               >
                 Get Started Free <ChevronRight className="w-5 h-5" />
               </button>
@@ -338,7 +338,7 @@ export default function Landing() {
               </ul>
               <button
                 onClick={goToApp}
-                className="w-full bg-gradient-to-r from-red-500 to-teal-500 hover:from-teal-500 hover:to-blue-500 text-white font-bold py-3 rounded-xl transition-all"
+                className="w-full bg-gradient-to-r from-red-500 to-teal-500 hover:from-teal-500 hover:to-red-500 text-white font-bold py-3 rounded-xl transition-all"
               >
                 Get Started Free
               </button>

@@ -15,6 +15,10 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus } from "lucide-react";
 
+function isValidEmail(email: string): boolean {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
 // Country → sensible IANA timezone + default language defaults.
 const COUNTRY_DEFAULTS: Record<string, { tz: string; lang: string }> = {
   "United States": { tz: "America/New_York", lang: "en" },
@@ -73,7 +77,7 @@ export function AddLeadDialog() {
     onError: () => toast({ title: "Couldn't add lead", description: "Check the required fields.", variant: "destructive" }),
   });
 
-  const valid = form.fullName.trim() && form.company.trim() && form.email.trim();
+  const valid = form.fullName.trim() && form.company.trim() && form.email.trim() && isValidEmail(form.email);
   // Local mode locks the country to the home market.
   const countries = isInternational ? Object.keys(COUNTRY_DEFAULTS) : ["United States"];
 
