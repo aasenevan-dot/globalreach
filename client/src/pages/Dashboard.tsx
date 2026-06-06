@@ -30,6 +30,11 @@ function Stat({ icon: Icon, label, value, hint }: any) {
 export default function Dashboard() {
   const { isInternational } = useMode();
   const { isConsumer } = useAudience();
+  // NOTE: all hooks must run before any early return below (Rules of Hooks).
+  // useLocation was previously called lower down, after the isConsumer/loading
+  // returns — switching to consumer skipped it, changing the hook count and
+  // crashing React with error #300 ("rendered fewer hooks than expected").
+  const [, navigate] = useLocation();
   const { data: leads, isLoading: l1, error: e1 } = useQuery<Lead[]>({ queryKey: ["/api/leads"] });
   const { data: campaigns, isLoading: l2, error: e2 } = useQuery<Campaign[]>({ queryKey: ["/api/campaigns"] });
   const { data: messages } = useQuery<Message[]>({ queryKey: ["/api/messages"] });
@@ -74,7 +79,6 @@ export default function Dashboard() {
     );
   }
 
-  const [, navigate] = useLocation();
   const allLeads = leads ?? [];
   const domestic = allLeads.filter((l) => l.country === "United States");
   const shown = isInternational ? allLeads : domestic;
