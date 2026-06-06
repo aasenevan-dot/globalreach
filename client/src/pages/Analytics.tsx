@@ -6,7 +6,7 @@ import {
   COUNTRY_FLAG, flagForLang, langName, CHANNELS, STATUS_META, localTimeIn, formatUSD,
   JOB_STAGES, JOB_STAGE_META,
 } from "@/lib/i18n-data";
-import { Card } from "@/components/ui/card";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SkeletonCard } from "@/components/SkeletonCard";
 import {
@@ -14,6 +14,7 @@ import {
   Smartphone, MessageCircle, Linkedin, Clock, Handshake, DollarSign, Trophy,
   HardHat, Home, CheckCircle2, Wallet, FileText, Layers, GitBranch, MousePointerClick,
 } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, Cell, PieChart, Pie, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 const CHANNEL_ICONS: Record<string, any> = {
   email: Mail, call: Phone, sms: Smartphone, whatsapp: MessageCircle, linkedin: Linkedin,
@@ -143,6 +144,45 @@ export default function Analytics() {
   const attributedLeads = shownLeads.filter((l) => (l.referredBy ?? "").trim()).length;
   const referralShare = shownLeads.length ? Math.round((attributedLeads / shownLeads.length) * 100) : 0;
   const maxRevenue = Math.max(...referralSources.map((r) => r.revenue), 1);
+
+  // ---- Chart data ----
+  // 1. Pipeline Funnel: count leads per status (use FUNNEL order)
+  const pipelineFunnelData = FUNNEL.map((s) => ({
+    name: STATUS_META[s]?.label ?? s,
+    value: shownLeads.filter((l) => l.status === s).length,
+  }));
+
+  // 2. Deal Value by Industry: sum dealValue grouped by industry, top 5
+  const industryMap = new Map<string, number>();
+  for (const l of shownLeads) {
+    const ind = (l.industry ?? "Unknown").trim() || "Unknown";
+    industryMap.set(ind, (industryMap.get(ind) ?? 0) + (l.dealValue ?? 0));
+  }
+  const dealByIndustryData = [...industryMap.entries()]
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
+
+  // 3. Channel Mix: count messages by channel
+  const channelMixMap = new Map<string, number>();
+  for (const m of allMsgs) {
+    channelMixMap.set(m.channel, (channelMixMap.get(m.channel) ?? 0) + 1);
+  }
+  const channelMixData = [...channelMixMap.entries()]
+    .map(([name, value]) => ({ name: CHANNELS[name]?.label ?? name, value }))
+    .sort((a, b) => b.value - a.value);
+
+  // 4. Lead Sources: count referredBy values, top 5
+  const leadSourceMap = new Map<string, number>();
+  for (const l of shownLeads) {
+    const src = (l.referredBy ?? "").trim();
+    if (!src) continue;
+    leadSourceMap.set(src, (leadSourceMap.get(src) ?? 0) + 1);
+  }
+  const leadSourceData = [...leadSourceMap.entries()]
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
 
   return (
     <div className="space-y-6">
@@ -400,6 +440,113 @@ export default function Analytics() {
           </div>
         </Card>
       )}
+      </div>
+
+      {/* Visual Breakdown */}
+      <div>
+        <h2 className="text-lg font-display font-semibold mb-4">Visual Breakdown</h2>
+        <div className="grid lg:grid-cols-2 gap-6">
+
+          {/* Chart 1: Pipeline Funnel */}
+          <Card>
+            <CardHeader className="pb-2">
+              <h3 className="font-display font-semibold text-sm">Pipeline Funnel</h3>
+            </CardHeader>
+            <CardContent>
+              {pipelineFunnelData.every((d) => d.value === 0) ? (
+                <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground border border-dashed border-border rounded-lg">No pipeline data yet.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={pipelineFunnelData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                      {pipelineFunnelData.map((_, i) => (
+                        <Cell key={i} fill={i % 2 === 0 ? "#ef4444" : "#14b8a6"} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Chart 2: Deal Value by Industry */}
+          <Card>
+            <CardHeader className="pb-2">
+              <h3 className="font-display font-semibold text-sm">Deal Value by Industry</h3>
+            </CardHeader>
+            <CardContent>
+              {dealByIndustryData.length === 0 ? (
+                <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground border border-dashed border-border rounded-lg">No deal value data yet.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={dealByIndustryData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `$${(v / 1000).toFixed(0)}k`} />
+                    <Tooltip formatter={(v: number) => [`$${v.toLocaleString()}`, "Deal Value"]} />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                      {dealByIndustryData.map((_, i) => (
+                        <Cell key={i} fill={i % 2 === 0 ? "#14b8a6" : "#ef4444"} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Chart 3: Channel Mix PieChart */}
+          <Card>
+            <CardHeader className="pb-2">
+              <h3 className="font-display font-semibold text-sm">Channel Mix</h3>
+            </CardHeader>
+            <CardContent>
+              {channelMixData.length === 0 ? (
+                <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground border border-dashed border-border rounded-lg">No messages yet.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <PieChart>
+                    <Pie data={channelMixData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, percent }) => `${name} ${Math.round(percent * 100)}%`} labelLine={false}>
+                      {channelMixData.map((_, i) => (
+                        <Cell key={i} fill={i % 2 === 0 ? "#ef4444" : "#14b8a6"} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                    <Legend />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Chart 4: Lead Sources */}
+          <Card>
+            <CardHeader className="pb-2">
+              <h3 className="font-display font-semibold text-sm">Lead Sources</h3>
+            </CardHeader>
+            <CardContent>
+              {leadSourceData.length === 0 ? (
+                <div className="h-[220px] flex items-center justify-center text-sm text-muted-foreground border border-dashed border-border rounded-lg">No referral sources tracked yet.</div>
+              ) : (
+                <ResponsiveContainer width="100%" height={220}>
+                  <BarChart data={leadSourceData} margin={{ top: 4, right: 8, left: -16, bottom: 4 }}>
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                    <Tooltip />
+                    <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                      {leadSourceData.map((_, i) => (
+                        <Cell key={i} fill={i % 2 === 0 ? "#ef4444" : "#14b8a6"} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+        </div>
       </div>
     </div>
   );

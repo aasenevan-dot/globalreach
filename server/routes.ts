@@ -29,6 +29,45 @@ export async function registerRoutes(
   app.get("/api/leads", async (_req, res) => {
     res.json(await storage.getLeads());
   });
+  // ---- Lead CSV Export (must be before /api/leads/:id to avoid route shadowing) ----
+  app.get("/api/leads/export", async (_req, res) => {
+    try {
+      const allLeads = await storage.getLeads();
+      const headers = [
+        "id", "fullName", "title", "company", "email", "phone",
+        "country", "city", "state", "metro", "timezone", "language",
+        "industry", "companySize", "verified", "status",
+        "referredBy", "dealValue", "tags",
+      ];
+      const escape = (v: unknown): string => {
+        const s = v == null ? "" : String(v);
+        return s.includes(",") || s.includes('"') || s.includes("\n")
+          ? `"${s.replace(/"/g, '""')}"`
+          : s;
+      };
+      const rows = allLeads.map(l =>
+        [
+          l.id, l.fullName, l.title, l.company, l.email, l.phone ?? "",
+          l.country, l.city ?? "", l.state ?? "", l.metro ?? "", l.timezone, l.language,
+          l.industry, l.companySize, l.verified ? "1" : "0", l.status,
+          l.referredBy ?? "", l.dealValue ?? "", l.tags,
+        ].map(escape).join(",")
+      );
+      const csv = [headers.join(","), ...rows].join("\r\n");
+      res.setHeader("Content-Type", "text/csv");
+      res.setHeader("Content-Disposition", 'attachment; filename="leads.csv"');
+      res.send(csv);
+    } catch (e: any) { res.status(500).json({ error: e.message || "Export failed" }); }
+  });
+
+  // ---- Lead Activity (must be before /api/leads/:id to avoid route shadowing) ----
+  app.get("/api/leads/:id/activity", async (req, res) => {
+    try {
+      const activity = await storage.getLeadActivity(Number(req.params.id));
+      res.json(activity);
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to fetch activity" }); }
+  });
+
   app.get("/api/leads/:id", async (req, res) => {
     const lead = await storage.getLead(Number(req.params.id));
     if (!lead) return res.status(404).json({ error: "Not found" });
@@ -894,6 +933,14 @@ export async function registerRoutes(
   });
 
   // ---- Seed demo data ----
+  app.get("/api/seed", async (_req, res) => {
+    try {
+      const { runSeed } = await import("./seed");
+      const result = await runSeed();
+      res.json({ ok: true, ...result });
+    } catch (e: any) { res.status(500).json({ error: String(e) }); }
+  });
+
   app.post("/api/seed", async (_req, res) => {
     try {
       const { db: dbConn } = await import("./storage");

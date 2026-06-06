@@ -351,3 +351,18 @@ export const reminders = sqliteTable("reminders", {
 export const insertReminderSchema = createInsertSchema(reminders).omit({ id: true });
 export type InsertReminder = z.infer<typeof insertReminderSchema>;
 export type Reminder = typeof reminders.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// Activity Log — audit trail of events linked to a lead
+// ---------------------------------------------------------------------------
+export const activityLog = sqliteTable("activity_log", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  leadId: integer("lead_id").notNull(),
+  type: text("type").notNull(),
+  description: text("description").notNull(),
+  metadata: text("metadata"),
+  createdAt: text("created_at").notNull(),
+});
+export const insertActivityLogSchema = createInsertSchema(activityLog).omit({ id: true });
+export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+export type ActivityLog = typeof activityLog.$inferSelect;

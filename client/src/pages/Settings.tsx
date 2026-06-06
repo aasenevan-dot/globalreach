@@ -15,7 +15,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Globe, Clock, Languages as LangIcon, Home, Sparkles, Mail, Database, CheckCircle2, AlertCircle, Bot, Lock } from "lucide-react";
+import { Globe, Clock, Languages as LangIcon, Home, Sparkles, Mail, Database, Trash2, CheckCircle2, AlertCircle, Bot, Lock } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const COUNTRY_TZ: Record<string, string[]> = {
   "United States": ["America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles"],
@@ -136,6 +137,57 @@ export default function Settings() {
         <h1 className="text-2xl font-display font-bold tracking-tight">Settings</h1>
         <p className="text-muted-foreground text-sm mt-1">Configure your workspace and home market.</p>
       </div>
+
+      {/* Demo Data */}
+      <Card className="p-5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-lg bg-amber-500/15 flex items-center justify-center">
+              <Database className="h-5 w-5 text-amber-500" />
+            </div>
+            <div>
+              <h2 className="font-display font-semibold">Demo Data</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Load realistic sample leads, campaigns, and jobs to explore the app.</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => seedMutation.mutate()}
+              disabled={seedMutation.isPending}
+              variant="outline"
+              className="gap-2 text-amber-500 border-amber-500/30 hover:bg-amber-500/10"
+            >
+              <Database className="h-4 w-4" />
+              {seedMutation.isPending ? "Loading…" : "Load Demo Data"}
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="gap-2">
+                  <Trash2 className="h-4 w-4" />
+                  Clear All Data
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear all data?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete all leads, campaigns, jobs, and activity. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={() => toast({ title: "Clear All Data", description: "Data clearing is not yet available via the UI." })}
+                  >
+                    Clear All Data
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </div>
+      </Card>
 
       {/* Mode selector */}
       <Card className="p-5">
@@ -347,24 +399,6 @@ export default function Settings() {
         )}
       </Card>
 
-      {/* Demo Data */}
-      <Card className="p-5">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-amber-500/15 flex items-center justify-center">
-              <Database className="h-5 w-5 text-amber-500" />
-            </div>
-            <div>
-              <h2 className="font-display font-semibold">Demo Data</h2>
-              <p className="text-xs text-muted-foreground mt-0.5">Load realistic sample leads, campaigns, and jobs to explore the app.</p>
-            </div>
-          </div>
-          <Button onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending} variant="outline" className="gap-2 text-amber-500 border-amber-500/30 hover:bg-amber-500/10">
-            <Database className="h-4 w-4" />
-            {seedMutation.isPending ? "Loading…" : "Load Demo Data"}
-          </Button>
-        </div>
-      </Card>
     </div>
   );
 }

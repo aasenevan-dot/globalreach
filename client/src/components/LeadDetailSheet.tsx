@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMode } from "@/lib/mode";
-import type { Lead, Message } from "@shared/schema";
+import type { Lead, Message, ActivityLog } from "@shared/schema";
 import {
   COUNTRY_FLAG, flagForLang, langName, localTimeIn, tzAbbrev, CHANNELS, STATUS_META,
 } from "@/lib/i18n-data";
@@ -20,6 +20,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { EditLeadDialog } from "@/components/EditLeadDialog";
 import { WinCelebrationDialog } from "@/components/WinCelebrationDialog";
@@ -27,7 +28,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Mail, Phone, Building2, MapPin, Clock, Globe, CheckCircle2, Briefcase,
   Users as UsersIcon, MessageSquare, Pencil, Trash2, Navigation, Target, ArrowRight,
-  Handshake, DollarSign, Tag, Plus, X, Bell,
+  Handshake, DollarSign, Tag, Plus, X, Bell, History,
 } from "lucide-react";
 import { scoreLead, scoreLabel } from "@/lib/scoring";
 
@@ -64,6 +65,12 @@ export function LeadDetailSheet({ leadId, onClose, onOpenLead }: { leadId: numbe
   const [newTag, setNewTag] = useState("");
   const [reminderText, setReminderText] = useState("");
   const [reminderDate, setReminderDate] = useState("");
+  // Tab navigation state.
+  const [activeTab, setActiveTab] = useState("overview");
+  // Notes local state — synced from lead.notes on load.
+  // lead.notes may not exist on the TS type until schema.ts is updated;
+  // we cast safely here so the UI is ready once the column lands.
+  const [notesValue, setNotesValue] = useState("");
   const { data: lead } = useQuery<Lead>({
     queryKey: ["/api/leads", leadId],
     enabled: leadId != null,
@@ -75,6 +82,27 @@ export function LeadDetailSheet({ leadId, onClose, onOpenLead }: { leadId: numbe
   const { data: messages } = useQuery<Message[]>({
     queryKey: ["/api/messages"],
     enabled: leadId != null,
+  });
+
+  // Activity timeline — lazy-loaded only when the Activity tab is open.
+  const { data: activities, isLoading: activitiesLoading } = useQuery<ActivityLog[]>({
+    queryKey: ["/api/leads", leadId, "activity"],
+    enabled: leadId != null && activeTab === "activity",
+  });
+
+  // Sync notes value whenever a different lead loads.
+  useEffect(() => {
+    setNotesValue((lead as any)?.notes ?? "");
+  }, [lead?.id, (lead as any)?.notes]);
+
+  // Save notes on blur via PATCH — only if the value actually changed.
+  const saveNotes = useMutation({
+    mutationFn: async (notes: string) => apiRequest("PATCH", `/api/leads/${leadId}`, { notes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/leads", leadId] });
+    },
+    onError: () => toast({ title: "Could not save notes", variant: "destructive" }),
   });
 
   const updateStatus = useMutation({
@@ -133,6 +161,11 @@ export function LeadDetailSheet({ leadId, onClose, onOpenLead }: { leadId: numbe
     setDealValue(lead?.dealValue != null ? String(lead.dealValue) : "");
   }, [lead?.id, lead?.referredBy, lead?.dealValue]);
 
+  // Reset tab to Overview whenever the sheet closes or a different lead opens.
+  useEffect(() => {
+    if (leadId == null) setActiveTab("overview");
+  }, [leadId]);
+
   // Distinct referral sources already in use — power the autocomplete list.
   const knownSources = useMemo(() => {
     const set = new Set<string>();
@@ -185,337 +218,392 @@ export function LeadDetailSheet({ leadId, onClose, onOpenLead }: { leadId: numbe
               </div>
             </SheetHeader>
 
-            {/* Status */}
-            <div className="mt-5">
-              <div className="text-xs text-muted-foreground mb-2">Pipeline stage</div>
-              <div className="flex flex-wrap gap-1.5">
-                {STATUS_FLOW.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    data-testid={`status-btn-${s}`}
-                    onClick={() => updateStatus.mutate(s)}
-                    disabled={updateStatus.isPending}
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
-                      lead.status === s
-                        ? STATUS_META[s]?.tone + " ring-1 ring-current"
-                        : "bg-muted text-muted-foreground hover-elevate"
-                    }`}
-                  >
-                    {STATUS_META[s]?.label ?? s}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="mt-5">
+              <TabsList className="w-full">
+                <TabsTrigger value="overview" className="flex-1">Overview</TabsTrigger>
+                <TabsTrigger value="activity" className="flex-1">Activity</TabsTrigger>
+                <TabsTrigger value="notes" className="flex-1">Notes</TabsTrigger>
+              </TabsList>
 
-            {/* Profile */}
-            <div className="mt-6 space-y-4">
-              <Field icon={Mail} label="Email" value={lead.email} />
-              {lead.phone && <Field icon={Phone} label="Phone" value={lead.phone} />}
-              {/* Lead Score */}
-              {(() => {
-                const score = scoreLead(lead);
-                const sl = scoreLabel(score);
-                return (
-                  <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-muted/40 border border-border">
-                    <Target className="h-4 w-4 text-muted-foreground shrink-0" />
+              {/* ── Overview tab ─────────────────────────────────────────── */}
+              <TabsContent value="overview">
+                {/* Status */}
+                <div className="mt-5">
+                  <div className="text-xs text-muted-foreground mb-2">Pipeline stage</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {STATUS_FLOW.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        data-testid={`status-btn-${s}`}
+                        onClick={() => updateStatus.mutate(s)}
+                        disabled={updateStatus.isPending}
+                        className={`rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
+                          lead.status === s
+                            ? STATUS_META[s]?.tone + " ring-1 ring-current"
+                            : "bg-muted text-muted-foreground hover-elevate"
+                        }`}
+                      >
+                        {STATUS_META[s]?.label ?? s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Profile */}
+                <div className="mt-6 space-y-4">
+                  <Field icon={Mail} label="Email" value={lead.email} />
+                  {lead.phone && <Field icon={Phone} label="Phone" value={lead.phone} />}
+                  {/* Lead Score */}
+                  {(() => {
+                    const score = scoreLead(lead);
+                    const sl = scoreLabel(score);
+                    return (
+                      <div className="flex items-center gap-3 py-2 px-3 rounded-lg bg-muted/40 border border-border">
+                        <Target className="h-4 w-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1">
+                          <div className="text-xs text-muted-foreground">Lead Score</div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-lg font-bold tabular-nums ${sl.className}`}>{score}</span>
+                            <span className={`text-sm font-semibold ${sl.className}`}>{sl.label}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Tags */}
+                  <div className="flex items-start gap-3">
+                    <Tag className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
                     <div className="flex-1">
-                      <div className="text-xs text-muted-foreground">Lead Score</div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-lg font-bold tabular-nums ${sl.className}`}>{score}</span>
-                        <span className={`text-sm font-semibold ${sl.className}`}>{sl.label}</span>
+                      <div className="text-xs text-muted-foreground mb-1">Tags</div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(lead.tags || "").split(",").filter(Boolean).map((tag: string) => (
+                          <span key={tag} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                            #{tag}
+                            <button
+                              onClick={() => {
+                                fetch(`/api/leads/${lead.id}/tags`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ remove: tag }) })
+                                  .then(() => { queryClient.invalidateQueries({ queryKey: ["/api/leads"] }); queryClient.invalidateQueries({ queryKey: ["/api/leads", leadId] }); });
+                              }}
+                              className="hover:text-red-400 transition-colors"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                        <div className="flex items-center gap-1">
+                          <input
+                            type="text"
+                            value={newTag}
+                            onChange={e => setNewTag(e.target.value.replace(/[^a-z0-9-]/g, ""))}
+                            onKeyDown={e => {
+                              if (e.key === "Enter" && newTag.trim()) {
+                                fetch(`/api/leads/${lead.id}/tags`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ add: newTag.trim() }) })
+                                  .then(() => { setNewTag(""); queryClient.invalidateQueries({ queryKey: ["/api/leads"] }); queryClient.invalidateQueries({ queryKey: ["/api/leads", leadId] }); });
+                              }
+                            }}
+                            placeholder="add tag"
+                            className="w-20 text-xs px-2 py-0.5 rounded-full border border-border bg-background focus:outline-none focus:border-primary/50"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
-                );
-              })()}
 
-              {/* Tags */}
-              <div className="flex items-start gap-3">
-                <Tag className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
-                <div className="flex-1">
-                  <div className="text-xs text-muted-foreground mb-1">Tags</div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {(lead.tags || "").split(",").filter(Boolean).map((tag: string) => (
-                      <span key={tag} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-                        #{tag}
+                  {/* Reminders */}
+                  <div className="flex items-start gap-3">
+                    <Bell className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
+                    <div className="flex-1">
+                      <div className="text-xs text-muted-foreground mb-1">Follow-up Reminder</div>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={reminderText}
+                          onChange={e => setReminderText(e.target.value)}
+                          placeholder="Call to discuss proposal"
+                          className="flex-1 text-xs px-2 py-1 rounded border border-border bg-background focus:outline-none focus:border-primary/50"
+                        />
+                        <input
+                          type="date"
+                          value={reminderDate}
+                          onChange={e => setReminderDate(e.target.value)}
+                          className="text-xs px-2 py-1 rounded border border-border bg-background focus:outline-none focus:border-primary/50 w-32"
+                        />
                         <button
                           onClick={() => {
-                            fetch(`/api/leads/${lead.id}/tags`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ remove: tag }) })
-                              .then(() => { queryClient.invalidateQueries({ queryKey: ["/api/leads"] }); queryClient.invalidateQueries({ queryKey: ["/api/leads", leadId] }); });
+                            if (!reminderText.trim() || !reminderDate) return;
+                            fetch("/api/reminders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId: lead.id, text: reminderText.trim(), dueDate: reminderDate }) })
+                              .then(() => { setReminderText(""); setReminderDate(""); queryClient.invalidateQueries({ queryKey: ["/api/reminders"] }); toast({ title: "Reminder added" }); });
                           }}
-                          className="hover:text-red-400 transition-colors"
+                          className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
+                          disabled={!reminderText.trim() || !reminderDate}
                         >
-                          <X className="h-3 w-3" />
+                          Add
                         </button>
-                      </span>
-                    ))}
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="text"
-                        value={newTag}
-                        onChange={e => setNewTag(e.target.value.replace(/[^a-z0-9-]/g, ""))}
-                        onKeyDown={e => {
-                          if (e.key === "Enter" && newTag.trim()) {
-                            fetch(`/api/leads/${lead.id}/tags`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ add: newTag.trim() }) })
-                              .then(() => { setNewTag(""); queryClient.invalidateQueries({ queryKey: ["/api/leads"] }); queryClient.invalidateQueries({ queryKey: ["/api/leads", leadId] }); });
-                          }
-                        }}
-                        placeholder="add tag"
-                        className="w-20 text-xs px-2 py-0.5 rounded-full border border-border bg-background focus:outline-none focus:border-primary/50"
-                      />
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Reminders */}
-              <div className="flex items-start gap-3">
-                <Bell className="h-4 w-4 text-muted-foreground mt-1 shrink-0" />
-                <div className="flex-1">
-                  <div className="text-xs text-muted-foreground mb-1">Follow-up Reminder</div>
-                  <div className="flex items-center gap-1.5">
-                    <input
-                      type="text"
-                      value={reminderText}
-                      onChange={e => setReminderText(e.target.value)}
-                      placeholder="Call to discuss proposal"
-                      className="flex-1 text-xs px-2 py-1 rounded border border-border bg-background focus:outline-none focus:border-primary/50"
-                    />
-                    <input
-                      type="date"
-                      value={reminderDate}
-                      onChange={e => setReminderDate(e.target.value)}
-                      className="text-xs px-2 py-1 rounded border border-border bg-background focus:outline-none focus:border-primary/50 w-32"
-                    />
-                    <button
-                      onClick={() => {
-                        if (!reminderText.trim() || !reminderDate) return;
-                        fetch("/api/reminders", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ leadId: lead.id, text: reminderText.trim(), dueDate: reminderDate }) })
-                          .then(() => { setReminderText(""); setReminderDate(""); queryClient.invalidateQueries({ queryKey: ["/api/reminders"] }); toast({ title: "Reminder added" }); });
-                      }}
-                      className="text-xs px-2 py-1 rounded bg-primary text-primary-foreground font-medium hover:opacity-90 disabled:opacity-50"
-                      disabled={!reminderText.trim() || !reminderDate}
-                    >
-                      Add
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <Field icon={Building2} label="Company" value={`${lead.company} · ${lead.industry}`} />
-              <Field icon={UsersIcon} label="Company size" value={`${lead.companySize} employees`} />
-              <Field
-                icon={MapPin}
-                label="Location"
-                value={<span className="flex items-center gap-1.5">{COUNTRY_FLAG[lead.country] ?? "🌍"} {lead.country === "United States" && lead.metro ? lead.metro : `${lead.city ? `${lead.city}, ` : ""}${lead.country}`}</span>}
-              />
-              {isInternational && (
-                <>
+                  <Field icon={Building2} label="Company" value={`${lead.company} · ${lead.industry}`} />
+                  <Field icon={UsersIcon} label="Company size" value={`${lead.companySize} employees`} />
                   <Field
-                    icon={Globe}
-                    label="Language"
-                    value={<span className="flex items-center gap-1.5">{flagForLang(lead.language)} {langName(lead.language)}</span>}
+                    icon={MapPin}
+                    label="Location"
+                    value={<span className="flex items-center gap-1.5">{COUNTRY_FLAG[lead.country] ?? "🌍"} {lead.country === "United States" && lead.metro ? lead.metro : `${lead.city ? `${lead.city}, ` : ""}${lead.country}`}</span>}
                   />
-                  {t && (
-                    <Field
-                      icon={Clock}
-                      label="Local time"
-                      value={
-                        <span className="flex items-center gap-2 font-mono">
-                          {t.time} {tzAbbrev(lead.timezone)}
-                          <span className={`text-xs font-sans ${t.inWindow ? "text-emerald-500" : "text-muted-foreground"}`}>
-                            {t.inWindow ? "● Best time to reach" : "○ Outside hours"}
-                          </span>
-                        </span>
-                      }
-                    />
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Referral attribution — credit the source that sent this deal */}
-            {lead.country === "United States" && (
-              <div className="mt-6" data-testid="section-referral-attribution">
-                <div className="flex items-center gap-2 mb-3">
-                  <Handshake className="h-4 w-4 text-primary" />
-                  <h3 className="text-sm font-medium">Referral attribution</h3>
-                </div>
-                <div className="rounded-lg border border-border p-3 space-y-3">
-                  <div>
-                    <Label htmlFor="input-referred-by" className="text-xs text-muted-foreground">
-                      Referred by
-                    </Label>
-                    <Input
-                      id="input-referred-by"
-                      data-testid="input-referred-by"
-                      list="referral-sources"
-                      placeholder="e.g. Cardinal Insurance Group, past customer…"
-                      className="mt-1 h-9"
-                      value={refSource}
-                      onChange={(e) => setRefSource(e.target.value)}
-                      onBlur={commitSource}
-                      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-                    />
-                    <datalist id="referral-sources">
-                      {knownSources.map((s) => <option key={s} value={s} />)}
-                    </datalist>
-                  </div>
-                  {lead.status === "won" && (
-                    <div data-testid="field-deal-value">
-                      <Label htmlFor="input-deal-value" className="text-xs text-muted-foreground flex items-center gap-1">
-                        <DollarSign className="h-3 w-3" /> Deal value (USD)
-                      </Label>
-                      <Input
-                        id="input-deal-value"
-                        data-testid="input-deal-value"
-                        inputMode="numeric"
-                        placeholder="e.g. 48000"
-                        className="mt-1 h-9"
-                        value={dealValue}
-                        onChange={(e) => setDealValue(e.target.value)}
-                        onBlur={commitDealValue}
-                        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                  {isInternational && (
+                    <>
+                      <Field
+                        icon={Globe}
+                        label="Language"
+                        value={<span className="flex items-center gap-1.5">{flagForLang(lead.language)} {langName(lead.language)}</span>}
                       />
-                      {lead.dealValue != null && (
-                        <p className="text-xs text-muted-foreground mt-1" data-testid="text-deal-value">
-                          Closed-won at {formatUSDFull(lead.dealValue)}
-                          {lead.referredBy ? ` · credited to ${lead.referredBy}` : ""}
+                      {t && (
+                        <Field
+                          icon={Clock}
+                          label="Local time"
+                          value={
+                            <span className="flex items-center gap-2 font-mono">
+                              {t.time} {tzAbbrev(lead.timezone)}
+                              <span className={`text-xs font-sans ${t.inWindow ? "text-emerald-500" : "text-muted-foreground"}`}>
+                                {t.inWindow ? "● Best time to reach" : "○ Outside hours"}
+                              </span>
+                            </span>
+                          }
+                        />
+                      )}
+                    </>
+                  )}
+                </div>
+
+                {/* Referral attribution — credit the source that sent this deal */}
+                {lead.country === "United States" && (
+                  <div className="mt-6" data-testid="section-referral-attribution">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Handshake className="h-4 w-4 text-primary" />
+                      <h3 className="text-sm font-medium">Referral attribution</h3>
+                    </div>
+                    <div className="rounded-lg border border-border p-3 space-y-3">
+                      <div>
+                        <Label htmlFor="input-referred-by" className="text-xs text-muted-foreground">
+                          Referred by
+                        </Label>
+                        <Input
+                          id="input-referred-by"
+                          data-testid="input-referred-by"
+                          list="referral-sources"
+                          placeholder="e.g. Cardinal Insurance Group, past customer…"
+                          className="mt-1 h-9"
+                          value={refSource}
+                          onChange={(e) => setRefSource(e.target.value)}
+                          onBlur={commitSource}
+                          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                        />
+                        <datalist id="referral-sources">
+                          {knownSources.map((s) => <option key={s} value={s} />)}
+                        </datalist>
+                      </div>
+                      {lead.status === "won" && (
+                        <div data-testid="field-deal-value">
+                          <Label htmlFor="input-deal-value" className="text-xs text-muted-foreground flex items-center gap-1">
+                            <DollarSign className="h-3 w-3" /> Deal value (USD)
+                          </Label>
+                          <Input
+                            id="input-deal-value"
+                            data-testid="input-deal-value"
+                            inputMode="numeric"
+                            placeholder="e.g. 48000"
+                            className="mt-1 h-9"
+                            value={dealValue}
+                            onChange={(e) => setDealValue(e.target.value)}
+                            onBlur={commitDealValue}
+                            onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+                          />
+                          {lead.dealValue != null && (
+                            <p className="text-xs text-muted-foreground mt-1" data-testid="text-deal-value">
+                              Closed-won at {formatUSDFull(lead.dealValue)}
+                              {lead.referredBy ? ` · credited to ${lead.referredBy}` : ""}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                      {lead.status !== "won" && (
+                        <p className="text-xs text-muted-foreground">
+                          Deal value is recorded when this lead is marked Won. Referral source can be set at any stage.
                         </p>
                       )}
                     </div>
-                  )}
-                  {lead.status !== "won" && (
-                    <p className="text-xs text-muted-foreground">
-                      Deal value is recorded when this lead is marked Won. Referral source can be set at any stage.
-                    </p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Similar businesses nearby — the local growth loop */}
-            {lead.country === "United States" && (
-              <div className="mt-6" data-testid="section-similar-nearby">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-2">
-                    <Navigation className="h-4 w-4 text-primary" />
-                    <h3 className="text-sm font-medium">Similar businesses nearby</h3>
                   </div>
-                  <Select value={radius} onValueChange={setRadius}>
-                    <SelectTrigger className="h-7 w-[120px] text-xs" data-testid="select-radius">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="50">Within 50 mi</SelectItem>
-                      <SelectItem value="150">Within 150 mi</SelectItem>
-                      <SelectItem value="250">Within 250 mi</SelectItem>
-                      <SelectItem value="1000">Within 1,000 mi</SelectItem>
-                      <SelectItem value="99999">Anywhere in US</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
-                  <Target className="h-3 w-3" /> {lead.industry} · {lead.companySize} employees
-                </p>
-                <div className="space-y-2">
-                  {nearby.map(({ lead: n, miles }) => (
-                    <div
-                      key={n.id}
-                      data-testid={`nearby-card-${n.id}`}
-                      className="rounded-lg border border-border p-3 hover-elevate"
-                    >
-                      <button
-                        type="button"
-                        data-testid={`nearby-open-${n.id}`}
-                        onClick={() => onOpenLead?.(n.id)}
-                        className="text-left w-full"
-                      >
-                        <div className="text-sm font-medium truncate flex items-center gap-1.5">
-                          {n.company}
-                          {n.verified && <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {n.fullName} · {n.title}
-                        </div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 flex-wrap">
-                          <MapPin className="h-3 w-3" /> {usLocationLabel(n)}
-                          {miles != null && (
-                            <span className="rounded-full bg-primary/10 text-primary px-1.5 py-0.5 font-medium" data-testid={`nearby-distance-${n.id}`}>
-                              {formatMiles(miles)}
-                            </span>
-                          )}
-                          <span className={`rounded-full px-1.5 py-0.5 ${STATUS_META[n.status]?.tone ?? ""}`}>
-                            {STATUS_META[n.status]?.label ?? n.status}
-                          </span>
-                        </div>
-                      </button>
-                      <div className="flex items-center gap-3 mt-2">
-                        {n.status === "new" && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 gap-1 text-xs"
-                            data-testid={`nearby-add-${n.id}`}
-                            disabled={advanceStatus.isPending}
-                            onClick={() => advanceStatus.mutate({ id: n.id, status: "contacted" })}
-                          >
-                            <ArrowRight className="h-3 w-3" /> Add to outreach
-                          </Button>
-                        )}
-                        <button
-                          type="button"
-                          data-testid={`nearby-view-${n.id}`}
-                          onClick={() => onOpenLead?.(n.id)}
-                          className="text-xs text-muted-foreground hover:text-foreground"
+                )}
+
+                {/* Similar businesses nearby — the local growth loop */}
+                {lead.country === "United States" && (
+                  <div className="mt-6" data-testid="section-similar-nearby">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <div className="flex items-center gap-2">
+                        <Navigation className="h-4 w-4 text-primary" />
+                        <h3 className="text-sm font-medium">Similar businesses nearby</h3>
+                      </div>
+                      <Select value={radius} onValueChange={setRadius}>
+                        <SelectTrigger className="h-7 w-[120px] text-xs" data-testid="select-radius">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="50">Within 50 mi</SelectItem>
+                          <SelectItem value="150">Within 150 mi</SelectItem>
+                          <SelectItem value="250">Within 250 mi</SelectItem>
+                          <SelectItem value="1000">Within 1,000 mi</SelectItem>
+                          <SelectItem value="99999">Anywhere in US</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-3 flex items-center gap-1">
+                      <Target className="h-3 w-3" /> {lead.industry} · {lead.companySize} employees
+                    </p>
+                    <div className="space-y-2">
+                      {nearby.map(({ lead: n, miles }) => (
+                        <div
+                          key={n.id}
+                          data-testid={`nearby-card-${n.id}`}
+                          className="rounded-lg border border-border p-3 hover-elevate"
                         >
-                          View profile
-                        </button>
+                          <button
+                            type="button"
+                            data-testid={`nearby-open-${n.id}`}
+                            onClick={() => onOpenLead?.(n.id)}
+                            className="text-left w-full"
+                          >
+                            <div className="text-sm font-medium truncate flex items-center gap-1.5">
+                              {n.company}
+                              {n.verified && <CheckCircle2 className="h-3 w-3 text-emerald-500 shrink-0" />}
+                            </div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              {n.fullName} · {n.title}
+                            </div>
+                            <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 flex-wrap">
+                              <MapPin className="h-3 w-3" /> {usLocationLabel(n)}
+                              {miles != null && (
+                                <span className="rounded-full bg-primary/10 text-primary px-1.5 py-0.5 font-medium" data-testid={`nearby-distance-${n.id}`}>
+                                  {formatMiles(miles)}
+                                </span>
+                              )}
+                              <span className={`rounded-full px-1.5 py-0.5 ${STATUS_META[n.status]?.tone ?? ""}`}>
+                                {STATUS_META[n.status]?.label ?? n.status}
+                              </span>
+                            </div>
+                          </button>
+                          <div className="flex items-center gap-3 mt-2">
+                            {n.status === "new" && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 gap-1 text-xs"
+                                data-testid={`nearby-add-${n.id}`}
+                                disabled={advanceStatus.isPending}
+                                onClick={() => advanceStatus.mutate({ id: n.id, status: "contacted" })}
+                              >
+                                <ArrowRight className="h-3 w-3" /> Add to outreach
+                              </Button>
+                            )}
+                            <button
+                              type="button"
+                              data-testid={`nearby-view-${n.id}`}
+                              onClick={() => onOpenLead?.(n.id)}
+                              className="text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              View profile
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                      {nearby.length === 0 && (
+                        <div className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border rounded-lg">
+                          No similar businesses found in this radius. Try widening the search.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Conversation history */}
+                <div className="mt-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MessageSquare className="h-4 w-4 text-muted-foreground" />
+                    <h3 className="text-sm font-medium">Conversation history</h3>
+                    <span className="text-xs text-muted-foreground">{thread.length}</span>
+                  </div>
+                  <div className="space-y-2">
+                    {thread.map((m) => {
+                      const Icon = CHANNEL_ICONS[m.channel] ?? Mail;
+                      const outbound = m.direction === "outbound";
+                      return (
+                        <div key={m.id} className={`rounded-lg border border-border p-3 text-sm ${outbound ? "bg-primary/5" : "bg-muted/40"}`}>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                            <Icon className="h-3 w-3" />
+                            {CHANNELS[m.channel]?.label ?? m.channel}
+                            <span>· {outbound ? "Sent" : "Received"}</span>
+                            {isInternational && <span>· {flagForLang(m.language)}</span>}
+                            <span className="capitalize">· {m.status}</span>
+                          </div>
+                          {m.subject && <div className="font-medium mb-0.5">{m.subject}</div>}
+                          <div className="text-muted-foreground whitespace-pre-wrap">{m.body}</div>
+                        </div>
+                      );
+                    })}
+                    {thread.length === 0 && (
+                      <div className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border rounded-lg">
+                        No messages yet. Start a conversation from the Unified Inbox.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+
+              {/* ── Activity tab ──────────────────────────────────────────── */}
+              <TabsContent value="activity">
+                <div className="mt-4 space-y-3">
+                  {activitiesLoading && (
+                    <div className="text-sm text-muted-foreground py-4 text-center">
+                      Loading activity…
+                    </div>
+                  )}
+                  {!activitiesLoading && (!activities || activities.length === 0) && (
+                    <div className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border rounded-lg">
+                      No activity recorded yet.
+                    </div>
+                  )}
+                  {!activitiesLoading && activities && activities.length > 0 && activities.map((item) => (
+                    <div key={item.id} className="flex items-start gap-3">
+                      <div className="h-2 w-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                      <div>
+                        <div className="text-sm">{item.description}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {new Date(item.createdAt).toLocaleString()}
+                        </div>
                       </div>
                     </div>
                   ))}
-                  {nearby.length === 0 && (
-                    <div className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border rounded-lg">
-                      No similar businesses found in this radius. Try widening the search.
-                    </div>
-                  )}
                 </div>
-              </div>
-            )}
+              </TabsContent>
 
-            {/* Conversation history */}
-            <div className="mt-6">
-              <div className="flex items-center gap-2 mb-3">
-                <MessageSquare className="h-4 w-4 text-muted-foreground" />
-                <h3 className="text-sm font-medium">Conversation history</h3>
-                <span className="text-xs text-muted-foreground">{thread.length}</span>
-              </div>
-              <div className="space-y-2">
-                {thread.map((m) => {
-                  const Icon = CHANNEL_ICONS[m.channel] ?? Mail;
-                  const outbound = m.direction === "outbound";
-                  return (
-                    <div key={m.id} className={`rounded-lg border border-border p-3 text-sm ${outbound ? "bg-primary/5" : "bg-muted/40"}`}>
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                        <Icon className="h-3 w-3" />
-                        {CHANNELS[m.channel]?.label ?? m.channel}
-                        <span>· {outbound ? "Sent" : "Received"}</span>
-                        {isInternational && <span>· {flagForLang(m.language)}</span>}
-                        <span className="capitalize">· {m.status}</span>
-                      </div>
-                      {m.subject && <div className="font-medium mb-0.5">{m.subject}</div>}
-                      <div className="text-muted-foreground whitespace-pre-wrap">{m.body}</div>
-                    </div>
-                  );
-                })}
-                {thread.length === 0 && (
-                  <div className="text-sm text-muted-foreground py-4 text-center border border-dashed border-border rounded-lg">
-                    No messages yet. Start a conversation from the Unified Inbox.
-                  </div>
-                )}
-              </div>
-            </div>
+              {/* ── Notes tab ─────────────────────────────────────────────── */}
+              <TabsContent value="notes">
+                <div className="mt-4">
+                  <textarea
+                    className="w-full min-h-[200px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+                    placeholder="Add private notes about this lead…"
+                    value={notesValue}
+                    onChange={(e) => setNotesValue(e.target.value)}
+                    onBlur={() => {
+                      if (notesValue !== ((lead as any)?.notes ?? "")) {
+                        saveNotes.mutate(notesValue);
+                      }
+                    }}
+                  />
+                </div>
+              </TabsContent>
+            </Tabs>
           </>
         ) : (
           <>

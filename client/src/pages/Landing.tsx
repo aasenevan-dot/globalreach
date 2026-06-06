@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Send, LayoutDashboard, Layers, GitBranch, BarChart3, Star, Check, ChevronRight, Users, Zap, Mail } from "lucide-react";
+import { Search, Send, LayoutDashboard, Layers, GitBranch, BarChart3, Star, Check, ChevronRight, Users, Zap, Mail, Globe, Target, Webhook, TrendingUp, Briefcase } from "lucide-react";
 
 export default function Landing() {
   const goToApp = () => { window.location.hash = '#/'; };
@@ -109,83 +109,63 @@ export default function Landing() {
         </div>
       </section>
 
-      {/* FEATURES */}
+      {/* STATS BAR */}
+      <div className="bg-gray-900 border-b border-white/10 py-10">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex flex-col md:flex-row items-center justify-center divide-y md:divide-y-0 md:divide-x divide-white/10">
+            <div className="flex-1 text-center py-6 md:py-0">
+              <div className="text-4xl font-black text-white">4.89M+</div>
+              <div className="text-gray-400 text-sm mt-1">Contacts</div>
+            </div>
+            <div className="flex-1 text-center py-6 md:py-0">
+              <div className="text-4xl font-black text-white">30+</div>
+              <div className="text-gray-400 text-sm mt-1">Countries</div>
+            </div>
+            <div className="flex-1 text-center py-6 md:py-0">
+              <div className="text-4xl font-black text-white">16</div>
+              <div className="text-gray-400 text-sm mt-1">Outreach Channels</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* FEATURES GRID */}
       <section className="py-24 bg-gray-950">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-black text-white mb-4">
-              Everything you need to close more deals
-            </h2>
-            <p className="text-gray-400 text-lg max-w-2xl mx-auto">
-              One platform to find leads, automate outreach, manage your pipeline, and track ROI.
-            </p>
+            <h2 className="text-4xl font-black text-white mb-4">Everything you need to close more deals</h2>
+            <p className="text-gray-400 text-lg max-w-2xl mx-auto">One platform to find leads, automate outreach, manage your pipeline, and track ROI.</p>
           </div>
-
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {/* Lead Finder */}
             <div className="bg-gray-900 border border-white/[0.08] rounded-2xl p-6 hover:-translate-y-1 transition-transform cursor-default">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center mb-4">
-                <Search className="w-6 h-6 text-white" />
-              </div>
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center mb-4"><Search className="w-6 h-6 text-white" /></div>
               <h3 className="text-white font-bold text-lg mb-2">Lead Finder</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                4.89M verified B2B contacts with AI-powered filters and lead scoring
-              </p>
+              <p className="text-gray-400 text-sm leading-relaxed">4.89M verified B2B contacts with AI-powered filters and real-time lead scoring.</p>
             </div>
-
-            {/* Email Campaigns */}
             <div className="bg-gray-900 border border-white/[0.08] rounded-2xl p-6 hover:-translate-y-1 transition-transform cursor-default">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center mb-4">
-                <Send className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-white font-bold text-lg mb-2">Email Campaigns</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Multi-step sequences with real SMTP, open tracking, and reply detection
-              </p>
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center mb-4"><Target className="w-6 h-6 text-white" /></div>
+              <h3 className="text-white font-bold text-lg mb-2">Campaign Automation</h3>
+              <p className="text-gray-400 text-sm leading-relaxed">Multi-step sequences across email, SMS, and LinkedIn — scheduled and sent automatically.</p>
             </div>
-
-            {/* Sales Pipeline */}
             <div className="bg-gray-900 border border-white/[0.08] rounded-2xl p-6 hover:-translate-y-1 transition-transform cursor-default">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center mb-4">
-                <LayoutDashboard className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-white font-bold text-lg mb-2">Sales Pipeline</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Drag-and-drop kanban across 6 deal stages with win rate analytics
-              </p>
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center mb-4"><Briefcase className="w-6 h-6 text-white" /></div>
+              <h3 className="text-white font-bold text-lg mb-2">Pipeline CRM</h3>
+              <p className="text-gray-400 text-sm leading-relaxed">Drag-and-drop kanban across 6 deal stages with win-rate analytics baked in.</p>
             </div>
-
-            {/* Forms & Funnels */}
             <div className="bg-gray-900 border border-white/[0.08] rounded-2xl p-6 hover:-translate-y-1 transition-transform cursor-default">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center mb-4">
-                <Layers className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-white font-bold text-lg mb-2">Forms &amp; Funnels</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Build high-converting landing pages that auto-feed your CRM in real time
-              </p>
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center mb-4"><Globe className="w-6 h-6 text-white" /></div>
+              <h3 className="text-white font-bold text-lg mb-2">Multi-Language</h3>
+              <p className="text-gray-400 text-sm leading-relaxed">Reach prospects in 30+ countries with localized templates and regional compliance.</p>
             </div>
-
-            {/* Workflow Automation */}
             <div className="bg-gray-900 border border-white/[0.08] rounded-2xl p-6 hover:-translate-y-1 transition-transform cursor-default">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center mb-4">
-                <GitBranch className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-white font-bold text-lg mb-2">Workflow Automation</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                No-code trigger &rarr; condition &rarr; action automations that run 24/7
-              </p>
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center mb-4"><TrendingUp className="w-6 h-6 text-white" /></div>
+              <h3 className="text-white font-bold text-lg mb-2">Analytics</h3>
+              <p className="text-gray-400 text-sm leading-relaxed">Referral ROI, funnel conversion rates, and per-channel performance in one dashboard.</p>
             </div>
-
-            {/* Analytics & ROI */}
             <div className="bg-gray-900 border border-white/[0.08] rounded-2xl p-6 hover:-translate-y-1 transition-transform cursor-default">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center mb-4">
-                <BarChart3 className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-white font-bold text-lg mb-2">Analytics &amp; ROI</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Referral source ROI, funnel conversion rates, and channel performance
-              </p>
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center mb-4"><Webhook className="w-6 h-6 text-white" /></div>
+              <h3 className="text-white font-bold text-lg mb-2">Webhooks &amp; Integrations</h3>
+              <p className="text-gray-400 text-sm leading-relaxed">Connect to any tool via webhooks or native integrations — Zapier, Slack, HubSpot, and more.</p>
             </div>
           </div>
         </div>
@@ -198,49 +178,26 @@ export default function Landing() {
             <h2 className="text-4xl font-black text-white mb-4">How It Works</h2>
             <p className="text-gray-400 text-lg">Get from zero to closed deals in three steps</p>
           </div>
-
-          <div className="flex flex-col md:flex-row items-center md:items-start justify-center gap-8 md:gap-0 max-w-4xl mx-auto">
+          <div className="relative flex flex-col md:flex-row items-center md:items-start justify-center gap-8 md:gap-0 max-w-4xl mx-auto">
+            {/* connector line — only on md+ */}
+            <div className="hidden md:block absolute top-8 left-1/6 right-1/6 h-px bg-gradient-to-r from-red-500/30 via-teal-500/30 to-red-500/30" />
             {/* Step 1 */}
-            <div className="flex flex-col items-center text-center flex-1 px-6">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center text-white font-black text-2xl mb-6 shadow-lg shadow-red-900/40">
-                1
-              </div>
+            <div className="flex flex-col items-center text-center flex-1 px-6 relative">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center text-white font-black text-2xl mb-6 shadow-lg shadow-red-900/40 z-10">1</div>
               <h3 className="text-white font-bold text-xl mb-3">Find Leads</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Use AI filters to discover verified contacts from 4.89M+ database
-              </p>
+              <p className="text-gray-400 text-sm leading-relaxed">Use AI filters to discover verified contacts from the 4.89M+ B2B database.</p>
             </div>
-
-            {/* Arrow */}
-            <div className="hidden md:flex items-start pt-7 flex-shrink-0">
-              <ChevronRight className="w-8 h-8 text-teal-400/50" />
-            </div>
-
             {/* Step 2 */}
-            <div className="flex flex-col items-center text-center flex-1 px-6">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center text-white font-black text-2xl mb-6 shadow-lg shadow-red-900/40">
-                2
-              </div>
-              <h3 className="text-white font-bold text-xl mb-3">Automate Outreach</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Launch multi-step email/SMS/LinkedIn sequences automatically
-              </p>
+            <div className="flex flex-col items-center text-center flex-1 px-6 relative">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center text-white font-black text-2xl mb-6 shadow-lg shadow-red-900/40 z-10">2</div>
+              <h3 className="text-white font-bold text-xl mb-3">Launch Campaigns</h3>
+              <p className="text-gray-400 text-sm leading-relaxed">Send automated multi-channel sequences across email, SMS, and LinkedIn.</p>
             </div>
-
-            {/* Arrow */}
-            <div className="hidden md:flex items-start pt-7 flex-shrink-0">
-              <ChevronRight className="w-8 h-8 text-teal-400/50" />
-            </div>
-
             {/* Step 3 */}
-            <div className="flex flex-col items-center text-center flex-1 px-6">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center text-white font-black text-2xl mb-6 shadow-lg shadow-red-900/40">
-                3
-              </div>
-              <h3 className="text-white font-bold text-xl mb-3">Close &amp; Track ROI</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">
-                Manage deals in pipeline and track referral source revenue
-              </p>
+            <div className="flex flex-col items-center text-center flex-1 px-6 relative">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center text-white font-black text-2xl mb-6 shadow-lg shadow-red-900/40 z-10">3</div>
+              <h3 className="text-white font-bold text-xl mb-3">Close Deals</h3>
+              <p className="text-gray-400 text-sm leading-relaxed">Track replies, manage deals in the pipeline, and measure revenue by channel.</p>
             </div>
           </div>
         </div>
@@ -330,7 +287,7 @@ export default function Landing() {
                 <div className="text-teal-400 text-sm font-semibold mt-1">Forever Free</div>
               </div>
               <ul className="space-y-3 flex-1 mb-8">
-                {["Unlimited leads", "All features included", "Local SQLite database", "No account needed", "Full source code"].map((item) => (
+                {["Unlimited leads & contacts", "Lead Finder with AI filters", "Campaign automation (email/SMS)", "Pipeline CRM — 6 deal stages", "Workflow automation builder", "Analytics & ROI dashboard", "Local SQLite database", "Full source code included"].map((item) => (
                   <li key={item} className="flex items-center gap-3 text-gray-300 text-sm">
                     <Check className="w-4 h-4 text-teal-400 flex-shrink-0" />
                     {item}
@@ -362,7 +319,7 @@ export default function Landing() {
                 <div className="text-teal-400 text-sm font-semibold mt-1">Everything in Free, plus:</div>
               </div>
               <ul className="space-y-3 flex-1 mb-8">
-                {["Cloud hosting", "Team seats", "Integrations", "Priority support"].map((item) => (
+                {["Everything in Free", "Cloud-hosted — no setup", "Up to 10 team seats", "16 outreach channels", "Native Zapier & Slack integrations", "Webhook builder", "Multi-language templates", "Priority email support"].map((item) => (
                   <li key={item} className="flex items-center gap-3 text-gray-300 text-sm">
                     <Check className="w-4 h-4 text-teal-400 flex-shrink-0" />
                     {item}
@@ -405,7 +362,7 @@ export default function Landing() {
                 <div className="text-gray-400 text-sm font-semibold mt-1">Volume pricing available</div>
               </div>
               <ul className="space-y-3 flex-1 mb-8">
-                {["Everything in Pro", "Custom integrations", "SLA guarantee", "Dedicated support", "On-premise option"].map((item) => (
+                {["Everything in Pro", "Unlimited team seats", "Custom API integrations", "SSO / SAML login", "99.9% uptime SLA", "Dedicated account manager", "On-premise deployment option", "Custom contract & billing"].map((item) => (
                   <li key={item} className="flex items-center gap-3 text-gray-300 text-sm">
                     <Check className="w-4 h-4 text-teal-400 flex-shrink-0" />
                     {item}
@@ -459,14 +416,44 @@ export default function Landing() {
       </section>
 
       {/* FOOTER */}
-      <footer className="bg-gray-950 border-t border-white/10 py-12">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <img src="/logo-transparent.png" alt="GlobalReach" className="h-8 w-auto" />
-            <span className="text-gray-500 text-sm">The open-source sales OS</span>
+      <footer className="bg-gray-950 border-t border-white/10">
+        <div className="max-w-7xl mx-auto px-6 py-16">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-12">
+            {/* Brand column */}
+            <div className="md:col-span-1">
+              <img src="/logo-transparent.png" alt="GlobalReach" className="h-8 w-auto mb-3" />
+              <p className="text-gray-500 text-sm leading-relaxed">The open-source sales OS for modern B2B teams.</p>
+            </div>
+            {/* Product */}
+            <div>
+              <h4 className="text-white font-semibold text-sm mb-4">Product</h4>
+              <ul className="space-y-3">
+                {["Features", "Pricing", "How It Works", "Changelog"].map(link => (
+                  <li key={link}><a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">{link}</a></li>
+                ))}
+              </ul>
+            </div>
+            {/* Company */}
+            <div>
+              <h4 className="text-white font-semibold text-sm mb-4">Company</h4>
+              <ul className="space-y-3">
+                {["About", "Blog", "Careers", "Contact"].map(link => (
+                  <li key={link}><a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">{link}</a></li>
+                ))}
+              </ul>
+            </div>
+            {/* Legal */}
+            <div>
+              <h4 className="text-white font-semibold text-sm mb-4">Legal</h4>
+              <ul className="space-y-3">
+                {["Privacy Policy", "Terms of Service", "Cookie Policy"].map(link => (
+                  <li key={link}><a href="#" className="text-gray-400 hover:text-white text-sm transition-colors">{link}</a></li>
+                ))}
+              </ul>
+            </div>
           </div>
-          <div className="text-gray-500 text-sm">
-            &copy; 2026 GlobalReach. All rights reserved.
+          <div className="border-t border-white/10 pt-8 text-center">
+            <p className="text-gray-500 text-sm">&copy; 2026 GlobalReach. All rights reserved.</p>
           </div>
         </div>
       </footer>

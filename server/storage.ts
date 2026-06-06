@@ -1,7 +1,7 @@
 import {
   users, settings, leads, campaigns, steps, messages, jobs,
   forms, formSubmissions, funnels, automations, meetings, calendarSettings, reminders,
-  webhooks, webhookDeliveries, savedFilters,
+  webhooks, webhookDeliveries, savedFilters, activityLog,
 } from '@shared/schema';
 import type {
   User, InsertUser,
@@ -21,6 +21,7 @@ import type {
   Webhook, InsertWebhook,
   WebhookDelivery, InsertWebhookDelivery,
   SavedFilter, InsertSavedFilter,
+  ActivityLog, InsertActivityLog,
 } from '@shared/schema';
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "libsql";
@@ -299,6 +300,14 @@ try {
       delivered_at text NOT NULL,
       retry_count integer NOT NULL DEFAULT 0
     );
+    CREATE TABLE IF NOT EXISTS activity_log (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      lead_id INTEGER NOT NULL,
+      type TEXT NOT NULL,
+      description TEXT NOT NULL,
+      metadata TEXT,
+      created_at TEXT NOT NULL
+    );
   `);
 } catch { /* ignore */ }
 
@@ -402,6 +411,9 @@ export interface IStorage {
   createSavedFilter(f: InsertSavedFilter): Promise<SavedFilter>;
   updateSavedFilter(id: number, patch: Partial<InsertSavedFilter>): Promise<SavedFilter | undefined>;
   deleteSavedFilter(id: number): Promise<boolean>;
+
+  logActivity(leadId: number, type: string, description: string, metadata?: string): Promise<ActivityLog>;
+  getLeadActivity(leadId: number): Promise<ActivityLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -608,6 +620,20 @@ export class DatabaseStorage implements IStorage {
   async createSavedFilter(f: InsertSavedFilter) { return db.insert(savedFilters).values(f).returning().get(); }
   async updateSavedFilter(id: number, patch: Partial<InsertSavedFilter>) { return db.update(savedFilters).set({ ...patch, updatedAt: new Date().toISOString() }).where(eq(savedFilters.id, id)).returning().get(); }
   async deleteSavedFilter(id: number) { return db.delete(savedFilters).where(eq(savedFilters.id, id)).run().changes > 0; }
+
+  async logActivity(leadId: number, type: string, description: string, metadata?: string): Promise<ActivityLog> {
+    return db.insert(activityLog).values({
+      leadId,
+      type,
+      description,
+      metadata: metadata ?? null,
+      createdAt: new Date().toISOString(),
+    } as any).returning().get() as ActivityLog;
+  }
+  async getLeadActivity(leadId: number): Promise<ActivityLog[]> {
+    return (db.select().from(activityLog).where(eq(activityLog.leadId, leadId)).all() as ActivityLog[])
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
 
   async getWebhooks() { return db.select().from(webhooks).all(); }
   async getWebhook(id: number) { return db.select().from(webhooks).where(eq(webhooks.id, id)).get(); }
