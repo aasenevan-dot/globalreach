@@ -10,7 +10,8 @@ services:
         value: production
       - key: PORT
         value: 10000
-    disk:
-      name: data
-      mountPath: /opt/render/project/src/data
-      sizeGB: 1
+    # NOTE: No `disk:` block — Render's free tier does not support persistent
+    # disks, and declaring one fails the deploy. The app writes its SQLite DB to
+    # /tmp on Render (see server/storage.ts), so no persistent disk is needed.
+    # Caveat: /tmp is ephemeral — data resets on each redeploy/restart. Upgrade
+    # to a paid plan + re-add a disk (or move to Postgres) for durable storage.

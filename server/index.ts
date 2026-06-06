@@ -92,10 +92,13 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
+  // Bind to 0.0.0.0 (all interfaces), NOT 127.0.0.1. On Render/containers the
+  // platform proxy reaches the app from outside the container, so loopback-only
+  // binding makes the service unreachable (health checks fail → 503/timeouts).
   httpServer.listen(
     {
       port,
-      host: "127.0.0.1",
+      host: "0.0.0.0",
     },
     () => {
       log(`serving on port ${port}`);
