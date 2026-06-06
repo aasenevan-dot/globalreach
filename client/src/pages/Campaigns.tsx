@@ -46,6 +46,62 @@ function ChannelPills({ channels }: { channels: string[] }) {
   );
 }
 
+function EnrollLeadsDialog({ open, onClose, leads, isPending, onEnroll }: {
+  open: boolean; onClose: () => void; leads: any[]; isPending: boolean; onEnroll: (ids: number[]) => void;
+}) {
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [search, setSearch] = useState("");
+  const eligible = leads.filter(l => !["won","lost"].includes(l.status));
+  const filtered = search ? eligible.filter(l => l.fullName?.toLowerCase().includes(search.toLowerCase()) || l.company?.toLowerCase().includes(search.toLowerCase())) : eligible;
+
+  const toggle = (id: number) => setSelected(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s; });
+  const toggleAll = () => setSelected(selected.size === filtered.length ? new Set() : new Set(filtered.map((l: any) => l.id)));
+
+  return (
+    <AlertDialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <AlertDialogContent className="max-w-md">
+        <AlertDialogHeader>
+          <AlertDialogTitle>Enroll leads in campaign</AlertDialogTitle>
+          <AlertDialogDescription>Select leads to add to this campaign sequence.</AlertDialogDescription>
+        </AlertDialogHeader>
+        <div className="space-y-3">
+          <Input placeholder="Search leads…" value={search} onChange={e => setSearch(e.target.value)} />
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>{selected.size} selected</span>
+            <button onClick={toggleAll} className="hover:text-foreground underline">
+              {selected.size === filtered.length ? "Deselect all" : "Select all"}
+            </button>
+          </div>
+          <div className="max-h-64 overflow-y-auto space-y-1 pr-1">
+            {filtered.map((l: any) => (
+              <div key={l.id} onClick={() => toggle(l.id)} className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer text-sm transition-colors ${selected.has(l.id) ? "bg-teal-500/15 border border-teal-500/30" : "hover:bg-muted/50 border border-transparent"}`}>
+                <div className={`h-4 w-4 rounded border flex items-center justify-center flex-shrink-0 ${selected.has(l.id) ? "bg-teal-500 border-teal-500" : "border-border"}`}>
+                  {selected.has(l.id) && <Check className="h-3 w-3 text-white" />}
+                </div>
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{l.fullName}</div>
+                  <div className="text-muted-foreground truncate text-xs">{l.company}</div>
+                </div>
+              </div>
+            ))}
+            {filtered.length === 0 && <p className="text-center text-muted-foreground text-sm py-4">No eligible leads found.</p>}
+          </div>
+        </div>
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={onClose}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={(e) => { e.preventDefault(); onEnroll([...selected]); }}
+            disabled={selected.size === 0 || isPending}
+            className="bg-teal-600 hover:bg-teal-700 text-white"
+          >
+            {isPending ? "Enrolling…" : `Enroll ${selected.size} lead${selected.size !== 1 ? "s" : ""}`}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 function CampaignDetail({ id, onBack }: { id: number; onBack: () => void }) {
   const { isInternational } = useMode();
   const { toast } = useToast();
@@ -54,10 +110,12 @@ function CampaignDetail({ id, onBack }: { id: number; onBack: () => void }) {
     queryKey: ["/api/campaigns", id, "stats"],
     queryFn: async () => { const r = await fetch(`/api/campaigns/${id}/stats`); return r.json(); },
   });
+  const { data: allLeads = [] } = useQuery<any[]>({ queryKey: ["/api/leads"] });
   const [previewLang, setPreviewLang] = useState<string>("en");
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [enrollOpen, setEnrollOpen] = useState(false);
 
   const rename = useMutation({
     mutationFn: async (name: string) => apiRequest("PATCH", `/api/campaigns/${id}`, { name }),
@@ -86,6 +144,22 @@ function CampaignDetail({ id, onBack }: { id: number; onBack: () => void }) {
       toast({ title: "Campaign duplicated", description: "A draft copy with all steps was created." });
       onBack();
     },
+  });
+
+  const enroll = useMutation({
+    mutationFn: async (leadIds: number[]) => {
+      const r = await fetch(`/api/campaigns/${id}/bulk-enroll`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadIds }),
+      });
+      return r.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns", id, "stats"] });
+      toast({ title: `Enrolled ${data.enrolled ?? 0} leads`, description: data.alreadyEnrolled ? `${data.alreadyEnrolled} already enrolled` : undefined });
+      setEnrollOpen(false);
+    },
+    onError: () => toast({ title: "Enrollment failed", variant: "destructive" }),
   });
 
   if (isLoading || !data) return <Skeleton className="h-96" />;
@@ -135,6 +209,9 @@ function CampaignDetail({ id, onBack }: { id: number; onBack: () => void }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" className="gap-1.5 text-teal-600 dark:text-teal-400" onClick={() => setEnrollOpen(true)} data-testid="button-enroll-leads">
+            <Users className="h-4 w-4" /> Enroll Leads
+          </Button>
           <Button variant="outline" className="gap-1.5" disabled={duplicate.isPending} onClick={() => duplicate.mutate()} data-testid="button-duplicate-campaign-detail">
             <Copy className="h-4 w-4" /> {duplicate.isPending ? "Duplicating..." : "Duplicate"}
           </Button>
@@ -248,6 +325,14 @@ function CampaignDetail({ id, onBack }: { id: number; onBack: () => void }) {
           <StepEditor campaignId={id} steps={steps} channels={editableChannels} />
         )}
       </Card>
+
+      <EnrollLeadsDialog
+        open={enrollOpen}
+        onClose={() => setEnrollOpen(false)}
+        leads={allLeads}
+        isPending={enroll.isPending}
+        onEnroll={(ids) => enroll.mutate(ids)}
+      />
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>

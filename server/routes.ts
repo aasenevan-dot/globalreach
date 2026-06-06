@@ -79,6 +79,26 @@ export async function registerRoutes(
       if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
       const lead = await storage.createLead(parsed.data);
       storage.logActivity(lead.id, "lead.created", `Lead created: ${lead.fullName} at ${lead.company}`).catch(() => {});
+      // Fire lead_created automations
+      (async () => {
+        try {
+          const allAutomations = await storage.getAutomations();
+          for (const auto of allAutomations) {
+            if (!auto.active || auto.triggerType !== "lead_created") continue;
+            const actions = JSON.parse(auto.actions || "[]") as any[];
+            for (const action of actions) {
+              if (action.type === "update_status" && action.value) {
+                await storage.updateLead(lead.id, { status: action.value });
+              }
+              if (action.type === "enroll_campaign" && action.campaignId) {
+                const { bulkEnrollLeadsInCampaign } = await import("./lib/bulk-ops");
+                await bulkEnrollLeadsInCampaign([lead.id], action.campaignId).catch(() => {});
+              }
+            }
+            await storage.incrementAutomationRunCount(auto.id);
+          }
+        } catch (e) { /* non-critical */ }
+      })();
       res.json(lead);
     } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create lead" }); }
   });
@@ -126,6 +146,34 @@ export async function registerRoutes(
     // Log status changes to activity log
     if (parsed.data.status && prev && parsed.data.status !== prev.status) {
       storage.logActivity(id, "status.changed", `Status changed from ${prev.status} → ${parsed.data.status}`).catch(() => {});
+    }
+    // Fire status_changed automations
+    if (parsed.data.status && prev && parsed.data.status !== prev.status) {
+      (async () => {
+        try {
+          const allAutomations = await storage.getAutomations();
+          for (const auto of allAutomations) {
+            if (!auto.active || auto.triggerType !== "status_changed") continue;
+            const config = JSON.parse(auto.triggerConfig || "{}");
+            if (config.fromStatus && config.fromStatus !== prev.status) continue;
+            if (config.toStatus && config.toStatus !== parsed.data.status) continue;
+            const actions = JSON.parse(auto.actions || "[]") as any[];
+            for (const action of actions) {
+              if (action.type === "update_status" && action.value) {
+                await storage.updateLead(id, { status: action.value });
+              }
+              if (action.type === "enroll_campaign" && action.campaignId) {
+                const { bulkEnrollLeadsInCampaign } = await import("./lib/bulk-ops");
+                await bulkEnrollLeadsInCampaign([id], action.campaignId).catch(() => {});
+              }
+              if (action.type === "send_notification") {
+                console.log(`[Automation] Notification: Lead ${id} status → ${parsed.data.status}`);
+              }
+            }
+            await storage.incrementAutomationRunCount(auto.id);
+          }
+        } catch (e) { /* non-critical */ }
+      })();
     }
     res.json(updated);
   });
@@ -959,6 +1007,33 @@ export async function registerRoutes(
       const result = await runSeed();
       res.json({ ok: true, ...result });
     } catch (e: any) { res.status(500).json({ error: String(e) }); }
+  });
+
+  // Clear all data
+  app.post("/api/data/clear-all", async (_req, res) => {
+    try {
+      // Delete all leads (cascades to messages via ON DELETE CASCADE or we handle it)
+      const allLeads = await storage.getLeads();
+      if (allLeads.length > 0) {
+        await storage.deleteLeads(allLeads.map(l => l.id));
+      }
+      // Delete all campaigns
+      const allCampaigns = await storage.getCampaigns();
+      for (const c of allCampaigns) {
+        await storage.deleteCampaign(c.id);
+      }
+      // Delete all jobs (if mode supports it)
+      try {
+        const allJobs = await storage.getJobs();
+        for (const j of allJobs) { await storage.deleteJob(j.id); }
+      } catch (_) {}
+      // Delete all automations
+      try {
+        const allAutos = await storage.getAutomations();
+        for (const a of allAutos) { await storage.deleteAutomation(a.id); }
+      } catch (_) {}
+      res.json({ ok: true, message: "All data cleared" });
+    } catch (e: any) { res.status(500).json({ error: e.message || "Clear failed" }); }
   });
 
   app.post("/api/seed", async (_req, res) => {

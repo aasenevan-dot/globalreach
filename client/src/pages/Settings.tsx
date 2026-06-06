@@ -126,6 +126,19 @@ export default function Settings() {
     onError: () => toast({ title: "Seed failed", variant: "destructive" }),
   });
 
+  const clearMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/data/clear-all", { method: "POST" });
+      if (!r.ok) throw new Error("Clear failed");
+      return r.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries();
+      toast({ title: "All data cleared", description: "Leads, campaigns, messages, and activity have been deleted." });
+    },
+    onError: () => toast({ title: "Clear failed", variant: "destructive" }),
+  });
+
   if (isLoading) return <div className="space-y-4"><Skeleton className="h-24" /><Skeleton className="h-64" /></div>;
 
   const tzOptions = COUNTRY_TZ[homeCountry] ?? [homeTimezone];
@@ -178,7 +191,8 @@ export default function Settings() {
                   <AlertDialogCancel>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={() => toast({ title: "Clear All Data", description: "Data clearing is not yet available via the UI." })}
+                    onClick={(e) => { e.preventDefault(); clearMutation.mutate(); }}
+                    disabled={clearMutation.isPending}
                   >
                     Clear All Data
                   </AlertDialogAction>
