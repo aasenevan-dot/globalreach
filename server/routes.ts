@@ -948,12 +948,7 @@ export async function registerRoutes(
   app.get("/api/activity/recent", async (req, res) => {
     try {
       const limit = Math.min(Number(req.query.limit) || 20, 100);
-      const { db: dbConn } = await import("./storage");
-      const { activityLog } = await import("@shared/schema");
-      const rows = (dbConn as any).select().from(activityLog).all()
-        .sort((a: any, b: any) => b.createdAt.localeCompare(a.createdAt))
-        .slice(0, limit);
-      res.json(rows);
+      res.json(await storage.getRecentActivity(limit));
     } catch (e: any) { res.status(500).json({ error: e.message || "Failed to fetch activity" }); }
   });
 

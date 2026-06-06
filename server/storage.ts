@@ -416,6 +416,7 @@ export interface IStorage {
 
   logActivity(leadId: number, type: string, description: string, metadata?: string): Promise<ActivityLog>;
   getLeadActivity(leadId: number): Promise<ActivityLog[]>;
+  getRecentActivity(limit: number): Promise<ActivityLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -635,6 +636,11 @@ export class DatabaseStorage implements IStorage {
   async getLeadActivity(leadId: number): Promise<ActivityLog[]> {
     return (db.select().from(activityLog).where(eq(activityLog.leadId, leadId)).all() as ActivityLog[])
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+  async getRecentActivity(limit: number): Promise<ActivityLog[]> {
+    return (db.select().from(activityLog).all() as ActivityLog[])
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit);
   }
 
   async getWebhooks() { return db.select().from(webhooks).all(); }
