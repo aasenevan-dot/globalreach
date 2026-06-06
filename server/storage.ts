@@ -35,6 +35,102 @@ const DB_PATH = path.join(DB_DIR, "data.db");
 const sqlite = new Database(DB_PATH);
 sqlite.pragma("journal_mode = WAL");
 
+// ---------------------------------------------------------------------------
+// Bootstrap core tables. These are defined in the Drizzle schema but were only
+// ever created via `drizzle-kit push` (a manual dev command). In production on
+// Render the SQLite DB lives in ephemeral /tmp and starts EMPTY on every boot,
+// so without this the core tables never exist and every core endpoint (e.g.
+// GET /api/settings) throws "no such table". Creating them here makes the DB
+// self-bootstrapping in any fresh environment. Schemas mirror shared/schema.ts.
+// ---------------------------------------------------------------------------
+try {
+  sqlite.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id integer PRIMARY KEY AUTOINCREMENT,
+      username text NOT NULL UNIQUE,
+      password text NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS settings (
+      id integer PRIMARY KEY AUTOINCREMENT,
+      mode text NOT NULL DEFAULT 'local',
+      home_country text NOT NULL DEFAULT 'United States',
+      home_timezone text NOT NULL DEFAULT 'America/New_York',
+      home_language text NOT NULL DEFAULT 'en'
+    );
+    CREATE TABLE IF NOT EXISTS leads (
+      id integer PRIMARY KEY AUTOINCREMENT,
+      full_name text NOT NULL,
+      title text NOT NULL,
+      company text NOT NULL,
+      email text NOT NULL,
+      phone text,
+      country text NOT NULL,
+      city text,
+      state text,
+      metro text,
+      lat real,
+      lng real,
+      timezone text NOT NULL,
+      language text NOT NULL,
+      industry text NOT NULL,
+      company_size text NOT NULL,
+      verified integer NOT NULL DEFAULT 0,
+      status text NOT NULL DEFAULT 'new',
+      referred_by text,
+      deal_value integer,
+      tags text NOT NULL DEFAULT ''
+    );
+    CREATE TABLE IF NOT EXISTS campaigns (
+      id integer PRIMARY KEY AUTOINCREMENT,
+      name text NOT NULL,
+      status text NOT NULL DEFAULT 'draft',
+      channels text NOT NULL DEFAULT '[]',
+      languages text NOT NULL DEFAULT '[]',
+      target_countries text NOT NULL DEFAULT '[]',
+      send_window_start integer NOT NULL DEFAULT 9,
+      send_window_end integer NOT NULL DEFAULT 17,
+      respect_timezone integer NOT NULL DEFAULT 1,
+      auto_translate integer NOT NULL DEFAULT 1
+    );
+    CREATE TABLE IF NOT EXISTS steps (
+      id integer PRIMARY KEY AUTOINCREMENT,
+      campaign_id integer NOT NULL,
+      step_order integer NOT NULL,
+      channel text NOT NULL,
+      delay_days integer NOT NULL DEFAULT 0,
+      subject text,
+      body text NOT NULL,
+      translations text NOT NULL DEFAULT '{}'
+    );
+    CREATE TABLE IF NOT EXISTS messages (
+      id integer PRIMARY KEY AUTOINCREMENT,
+      lead_id integer NOT NULL,
+      campaign_id integer,
+      channel text NOT NULL,
+      direction text NOT NULL,
+      language text NOT NULL,
+      subject text,
+      body text NOT NULL,
+      scheduled_for text,
+      local_send_time text,
+      status text NOT NULL DEFAULT 'scheduled',
+      created_at text NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS saved_filters (
+      id integer PRIMARY KEY AUTOINCREMENT,
+      name text NOT NULL,
+      description text,
+      config text NOT NULL DEFAULT '{}',
+      operator text NOT NULL DEFAULT 'AND',
+      is_public integer NOT NULL DEFAULT 0,
+      created_at text NOT NULL,
+      updated_at text NOT NULL
+    );
+  `);
+} catch (e) {
+  console.error("Failed to bootstrap core tables:", e);
+}
+
 // Idempotent forward-migration: ensure referral-attribution columns exist on
 // databases created before they were added to the schema.
 try {
