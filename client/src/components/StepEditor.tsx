@@ -20,12 +20,21 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import {
   Mail, Phone, Smartphone, MessageCircle, Linkedin, Pencil, Trash2,
-  ArrowUp, ArrowDown, Plus,
+  ArrowUp, ArrowDown, Plus, Wand2,
 } from "lucide-react";
 
 const CHANNEL_ICONS: Record<string, any> = {
   email: Mail, call: Phone, sms: Smartphone, whatsapp: MessageCircle, linkedin: Linkedin,
 };
+
+const EMAIL_TEMPLATES = [
+  { label: "Cold intro", subject: "Quick idea for {{company}}", body: "Hi {{firstName}},\n\nI noticed {{company}} is growing in the {{industry}} space and wanted to reach out.\n\nWe help teams like yours find and close more qualified deals faster.\n\nWould a 15-minute call make sense this week?\n\nBest,\n[Your Name]" },
+  { label: "Follow-up #1", subject: "Following up — {{company}}", body: "Hi {{firstName}},\n\nJust following up on my earlier note.\n\nHappy to share how other {{industry}} teams doubled their pipeline in 90 days.\n\nWorth a quick chat?" },
+  { label: "Follow-up #2 (value)", subject: "One more thought for {{firstName}}", body: "Hi {{firstName}},\n\nI think {{company}} is leaving pipeline on the table.\n\nWe've helped similar {{industry}} companies add $200K+ in qualified pipeline in under 60 days. 15 minutes?" },
+  { label: "Breakup email", subject: "Closing your file", body: "Hi {{firstName}},\n\nI've reached out a few times without hearing back — I'll assume now isn't the right time.\n\nIf that changes, my door is always open.\n\nAll the best,\n[Your Name]" },
+  { label: "Case study", subject: "How a {{industry}} company added $180K in pipeline", body: "Hi {{firstName}},\n\nOne of our {{industry}} clients added 340 qualified leads, booked 22 discovery calls, and closed $180K in new ARR in 60 days. Want the playbook? 15 minutes?" },
+  { label: "LinkedIn follow-up", subject: "Great connecting, {{firstName}}", body: "Hi {{firstName}},\n\nThanks for connecting! I noticed {{company}} is doing interesting work in the {{industry}} space.\n\nWe help companies like yours build predictable outbound pipeline. Would a quick call make sense?" },
+];
 
 type Draft = { channel: string; delayDays: number; subject: string; body: string };
 
@@ -43,6 +52,7 @@ function StepFormDialog({
   const [d, setD] = useState<Draft>(initial);
   // Reset draft each time the dialog opens with a (possibly) different step.
   const [seed, setSeed] = useState(open);
+  const [showTemplates, setShowTemplates] = useState(false);
   if (open !== seed) {
     setSeed(open);
     if (open) setD(initial);
@@ -79,6 +89,26 @@ function StepFormDialog({
               />
             </div>
           </div>
+          {d.channel === "email" && (
+  <div className="relative">
+    <Button type="button" variant="outline" size="sm" className="gap-1.5 text-xs h-7" onClick={() => setShowTemplates(t => !t)}>
+      <Wand2 className="h-3 w-3" /> Templates
+    </Button>
+    {showTemplates && (
+      <div className="absolute top-8 left-0 z-50 w-72 bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+        <div className="px-3 py-2 text-xs font-semibold text-muted-foreground border-b border-border">Pick a template</div>
+        <div className="max-h-56 overflow-y-auto">
+          {EMAIL_TEMPLATES.map((tmpl) => (
+            <button key={tmpl.label} type="button" className="w-full text-left px-3 py-2.5 hover:bg-muted/60 transition-colors border-b border-border last:border-0" onClick={() => { setD(s => ({ ...s, subject: tmpl.subject, body: tmpl.body })); setShowTemplates(false); }}>
+              <div className="text-sm font-medium">{tmpl.label}</div>
+              <div className="text-xs text-muted-foreground truncate mt-0.5">{tmpl.subject}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+)}
           {d.channel === "email" && (
             <div className="space-y-1.5">
               <Label htmlFor="step-subject">Subject</Label>

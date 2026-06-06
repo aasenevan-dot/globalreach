@@ -38,6 +38,14 @@ export default function Inbox() {
     },
   });
 
+  const markRead = useMutation({
+    mutationFn: async (leadId: number) => {
+      const unreadMsgs = (messages ?? []).filter((m: any) => m.leadId === leadId && m.direction === "inbound" && m.status === "replied");
+      await Promise.all(unreadMsgs.map((m: any) => apiRequest("PATCH", "/api/messages/" + m.id, { status: "read" })));
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/messages"] }),
+  });
+
   if (isLoading) return (
     <div className="space-y-6">
       <div>
@@ -140,7 +148,7 @@ export default function Inbox() {
               return (
                 <button
                   key={l.id}
-                  onClick={() => setActiveLead(l.id)}
+                  onClick={() => { setActiveLead(l.id); markRead.mutate(l.id); }}
                   data-testid={`convo-${l.id}`}
                   className={`w-full text-left px-4 py-3 border-b border-border hover-elevate ${currentId === l.id ? "bg-muted/60" : ""}`}
                 >

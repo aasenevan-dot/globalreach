@@ -327,6 +327,7 @@ export interface IStorage {
 
   getLeads(): Promise<Lead[]>;
   getLead(id: number): Promise<Lead | undefined>;
+  getLeadByEmail(email: string): Promise<Lead | null>;
   createLead(lead: InsertLead): Promise<Lead>;
   createLeads(rows: InsertLead[]): Promise<Lead[]>;
   updateLead(id: number, patch: Partial<InsertLead>): Promise<Lead | undefined>;
@@ -447,6 +448,10 @@ export class DatabaseStorage implements IStorage {
   }
   async getLead(id: number) {
     return db.select().from(leads).where(eq(leads.id, id)).get();
+  }
+  async getLeadByEmail(email: string): Promise<Lead | null> {
+    const rows = (db.select().from(leads).all() as Lead[]);
+    return rows.find(l => l.email.toLowerCase() === email.toLowerCase()) ?? null;
   }
   async createLead(lead: InsertLead) {
     return db.insert(leads).values(lead).returning().get();

@@ -358,6 +358,13 @@ export async function registerRoutes(
       res.json(msg);
     } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create message" }); }
   });
+  app.patch("/api/messages/:id", async (req, res) => {
+    try {
+      const updated = await storage.updateMessage(Number(req.params.id), req.body);
+      if (!updated) return res.status(404).json({ error: "Not found" });
+      res.json(updated);
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to update message" }); }
+  });
 
   // ---- Jobs (Consumer / B2C residential pipeline) ----
   app.get("/api/jobs", async (_req, res) => {
@@ -746,7 +753,7 @@ export async function registerRoutes(
     try {
       const { rows, mapping } = req.body as { rows: Record<string, string>[]; mapping: Record<string, string> };
       if (!rows || !mapping) return res.status(400).json({ error: "Missing rows or mapping" });
-      let created = 0, skipped = 0;
+      let created = 0, skipped = 0, duplicates = 0;
       for (const row of rows) {
         const lead: Record<string, any> = {
           fullName: row[mapping.fullName] || row[mapping.firstName] ? `${row[mapping.firstName] || ""} ${row[mapping.lastName] || ""}`.trim() : "Unknown",
@@ -764,6 +771,10 @@ export async function registerRoutes(
           status: "new",
         };
         if (!lead.email) { skipped++; continue; }
+        if (lead.email) {
+          const existing = await storage.getLeadByEmail(lead.email as string);
+          if (existing) { duplicates++; continue; }
+        }
         if (mapping.fullName && row[mapping.fullName]) lead.fullName = row[mapping.fullName];
         try {
           await storage.createLead(lead as any);
@@ -773,7 +784,7 @@ export async function registerRoutes(
           skipped++;
         }
       }
-      res.json({ created, skipped, total: rows.length });
+      res.json({ created, skipped, duplicates, total: rows.length });
     } catch (e: any) { res.status(500).json({ error: e.message || "CSV import failed" }); }
   });
 
