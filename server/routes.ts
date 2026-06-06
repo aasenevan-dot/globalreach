@@ -77,7 +77,9 @@ export async function registerRoutes(
     try {
       const parsed = insertLeadSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-      res.json(await storage.createLead(parsed.data));
+      const lead = await storage.createLead(parsed.data);
+      storage.logActivity(lead.id, "lead.created", `Lead created: ${lead.fullName} at ${lead.company}`).catch(() => {});
+      res.json(lead);
     } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create lead" }); }
   });
   // Bulk import: accepts { leads: InsertLead[] }, validates each, inserts valid rows.
@@ -117,8 +119,14 @@ export async function registerRoutes(
   app.patch("/api/leads/:id", async (req, res) => {
     const parsed = insertLeadSchema.partial().safeParse(req.body);
     if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-    const updated = await storage.updateLead(Number(req.params.id), parsed.data);
+    const id = Number(req.params.id);
+    const prev = await storage.getLead(id);
+    const updated = await storage.updateLead(id, parsed.data);
     if (!updated) return res.status(404).json({ error: "Not found" });
+    // Log status changes to activity log
+    if (parsed.data.status && prev && parsed.data.status !== prev.status) {
+      storage.logActivity(id, "status.changed", `Status changed from ${prev.status} → ${parsed.data.status}`).catch(() => {});
+    }
     res.json(updated);
   });
   app.delete("/api/leads/:id", async (req, res) => {
@@ -295,7 +303,11 @@ export async function registerRoutes(
     try {
       const parsed = insertMessageSchema.safeParse(req.body);
       if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-      res.json(await storage.createMessage(parsed.data));
+      const msg = await storage.createMessage(parsed.data);
+      const dir = parsed.data.direction === "inbound" ? "Reply received" : "Message sent";
+      const ch = parsed.data.channel ?? "email";
+      storage.logActivity(msg.leadId, `message.${parsed.data.direction}`, `${dir} via ${ch}${parsed.data.subject ? `: ${parsed.data.subject}` : ""}`).catch(() => {});
+      res.json(msg);
     } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create message" }); }
   });
 
@@ -930,6 +942,19 @@ export async function registerRoutes(
 
     res.json({ ok: true, sent, queued, failed, total: eligible.length, smtpConfigured });
     } catch (e: any) { res.status(500).json({ error: e.message || "Campaign execution failed" }); }
+  });
+
+  // ---- Recent activity feed (across all leads) ----
+  app.get("/api/activity/recent", async (req, res) => {
+    try {
+      const limit = Math.min(Number(req.query.limit) || 20, 100);
+      const { db: dbConn } = await import("./storage");
+      const { activityLog } = await import("@shared/schema");
+      const rows = (dbConn as any).select().from(activityLog).all()
+        .sort((a: any, b: any) => b.createdAt.localeCompare(a.createdAt))
+        .slice(0, limit);
+      res.json(rows);
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to fetch activity" }); }
   });
 
   // ---- Seed demo data ----

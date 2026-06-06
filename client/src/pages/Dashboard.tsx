@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMode } from "@/lib/mode";
 import { useAudience } from "@/lib/audience";
 import { Link, useLocation } from "wouter";
-import type { Lead, Campaign, Message, Job, Reminder } from "@shared/schema";
+import type { Lead, Campaign, Message, Job, Reminder, ActivityLog } from "@shared/schema";
 import { EmptyState } from "@/components/EmptyState";
 import { localTimeIn, tzAbbrev, COUNTRY_FLAG, flagForLang, langName, STATUS_META, JOB_STAGES, JOB_STAGE_META, formatUSD } from "@/lib/i18n-data";
 import { scoreLead, scoreLabel } from "@/lib/scoring";
@@ -40,6 +40,11 @@ export default function Dashboard() {
   const { data: messages } = useQuery<Message[]>({ queryKey: ["/api/messages"] });
   const { data: jobs, isLoading: l3, error: e3 } = useQuery<Job[]>({ queryKey: ["/api/jobs"] });
   const { data: allReminders } = useQuery<Reminder[]>({ queryKey: ["/api/reminders"] });
+  const { data: recentActivity } = useQuery<ActivityLog[]>({
+    queryKey: ["/api/activity/recent"],
+    queryFn: () => fetch("/api/activity/recent?limit=10").then(r => r.json()),
+    refetchInterval: 30000,
+  });
 
   if (isConsumer) {
     if (e3) return <div className="p-8 text-center text-red-500">Failed to load data. Please try again.</div>;
@@ -361,6 +366,46 @@ export default function Dashboard() {
           })()}
         </Card>
       </div>
+
+      {/* Recent Activity feed */}
+      {(recentActivity ?? []).length > 0 && (
+        <Card className="p-5">
+          <div className="flex items-center gap-2 mb-4">
+            <Bell className="h-4 w-4 text-primary" />
+            <h2 className="font-display font-semibold">Recent Activity</h2>
+          </div>
+          <div className="space-y-2.5">
+            {(recentActivity ?? []).slice(0, 10).map((ev) => {
+              const lead = shown.find(l => l.id === ev.leadId);
+              const typeLabel: Record<string, string> = {
+                "lead.created": "Lead added",
+                "status.changed": "Status change",
+                "message.outbound": "Message sent",
+                "message.inbound": "Reply received",
+              };
+              const typeColor: Record<string, string> = {
+                "lead.created": "bg-teal-500",
+                "status.changed": "bg-amber-500",
+                "message.outbound": "bg-blue-500",
+                "message.inbound": "bg-emerald-500",
+              };
+              const dot = typeColor[ev.type] ?? "bg-muted-foreground";
+              const ts = ev.createdAt ? new Date(ev.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
+              return (
+                <div key={ev.id} className="flex items-start gap-3 text-sm">
+                  <div className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${dot}`} />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-muted-foreground text-xs mr-1.5">{typeLabel[ev.type] ?? ev.type}</span>
+                    <span className="truncate">{ev.description}</span>
+                    {lead && <span className="text-muted-foreground text-xs ml-1.5">· {lead.fullName}</span>}
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0">{ts}</span>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       {/* International-only: language coverage */}
       {isInternational && (
