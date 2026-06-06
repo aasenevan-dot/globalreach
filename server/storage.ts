@@ -23,17 +23,31 @@ import type {
   SavedFilter, InsertSavedFilter,
 } from '@shared/schema';
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import Database from "better-sqlite3";
+import Database from "libsql";
 import { eq, inArray } from "drizzle-orm";
 import path from "node:path";
 
-// Use persistent disk path on Render, local /tmp for Docker free tier, or local path
-const DB_DIR = process.env.RENDER
-  ? "/tmp"
-  : path.resolve(__dirname, "..");
+// Database driver: `libsql` exposes a synchronous, better-sqlite3-compatible API
+// (drop-in for drizzle-orm/better-sqlite3), so the rest of this file is unchanged.
+//
+// Durability: Render's free tier has no persistent disk and /tmp is wiped on every
+// cold start. When DATABASE_URL (a Turso libsql:// URL) is set, we open an EMBEDDED
+// REPLICA — reads are served from the fast local file, and writes are forwarded to
+// the remote Turso primary, so data survives restarts/redeploys. syncInterval keeps
+// the local replica fresh. Without DATABASE_URL we just use a local file (dev).
+const DB_DIR = process.env.RENDER ? "/tmp" : path.resolve(__dirname, "..");
 const DB_PATH = path.join(DB_DIR, "data.db");
-const sqlite = new Database(DB_PATH);
-sqlite.pragma("journal_mode = WAL");
+const syncUrl = process.env.DATABASE_URL;
+const authToken = process.env.DATABASE_AUTH_TOKEN;
+// `as any` on the options: libsql's published types omit authToken/syncInterval,
+// but the runtime accepts them (they're the documented embedded-replica options).
+const sqlite = syncUrl
+  ? new Database(DB_PATH, { syncUrl, authToken, syncInterval: 5 } as any)
+  : new Database(DB_PATH);
+// Pull the latest from the remote primary at boot so a fresh /tmp replica is
+// populated before serving (best-effort; syncInterval handles ongoing freshness).
+if (syncUrl) { try { (sqlite as any).sync(); } catch (e) { console.error("Initial Turso sync failed:", e); } }
+try { sqlite.pragma("journal_mode = WAL"); } catch { /* embedded replica may not support WAL pragma */ }
 
 // ---------------------------------------------------------------------------
 // Bootstrap core tables. These are defined in the Drizzle schema but were only
@@ -288,7 +302,9 @@ try {
   `);
 } catch { /* ignore */ }
 
-export const db = drizzle(sqlite);
+// `as any`: libsql's Database is runtime-compatible with the better-sqlite3
+// drizzle adapter (verified), but its TS types differ — cast to bridge them.
+export const db = drizzle(sqlite as any);
 
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
