@@ -57,9 +57,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-gray-950 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Globe className="h-8 w-8 text-teal-500" />
-            <span className="text-2xl font-black text-white tracking-tight">GlobalReach</span>
+          <div className="flex items-center justify-center mb-4">
+            <img src="/logo-transparent.png" alt="GlobalReach" className="h-12 w-auto" />
           </div>
           <p className="text-gray-500 text-sm">Enter your password to access the dashboard.</p>
         </div>

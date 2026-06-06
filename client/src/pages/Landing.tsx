@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Send, LayoutDashboard, Layers, GitBranch, BarChart3, Globe, Star, Check, ChevronRight, Users, Zap, Mail } from "lucide-react";
+import { Search, Send, LayoutDashboard, Layers, GitBranch, BarChart3, Star, Check, ChevronRight, Users, Zap, Mail } from "lucide-react";
 
 export default function Landing() {
   const goToApp = () => { window.location.hash = '#/'; };
@@ -14,9 +14,8 @@ export default function Landing() {
       {/* STICKY NAVBAR */}
       <nav className="fixed top-0 left-0 right-0 z-50 h-16 bg-gray-900/95 backdrop-blur border-b border-white/10 flex items-center px-6">
         <div className="max-w-7xl mx-auto w-full flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Globe className="w-6 h-6 text-teal-400" />
-            <span className="font-bold text-lg text-white">GlobalReach</span>
+          <div className="flex items-center">
+            <img src="/logo-transparent.png" alt="GlobalReach" className="h-10 w-auto" />
           </div>
           <div className="flex items-center gap-6">
             <button
@@ -463,11 +462,8 @@ export default function Landing() {
       <footer className="bg-gray-950 border-t border-white/10 py-12">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <Globe className="w-5 h-5 text-teal-400" />
-            <div>
-              <span className="font-bold text-white">GlobalReach</span>
-              <span className="text-gray-500 text-sm ml-2">The open-source sales OS</span>
-            </div>
+            <img src="/logo-transparent.png" alt="GlobalReach" className="h-8 w-auto" />
+            <span className="text-gray-500 text-sm">The open-source sales OS</span>
           </div>
           <div className="text-gray-500 text-sm">
             &copy; 2026 GlobalReach. All rights reserved.

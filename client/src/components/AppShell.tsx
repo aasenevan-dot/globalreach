@@ -4,7 +4,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useMode } from "@/lib/mode";
 import { useAudience } from "@/lib/audience";
 import { useTheme } from "@/lib/theme";
-import { Logo } from "./Logo";
 import { ModeToggle } from "./ModeToggle";
 import { AudienceToggle } from "./AudienceToggle";
 import { Button } from "@/components/ui/button";
@@ -75,8 +74,7 @@ export function AppShell({ children, onOpenSearch }: { children: React.ReactNode
       <>
         <div className="flex items-center justify-between gap-2 px-5 h-16 border-b border-sidebar-border shrink-0">
           <div className="flex items-center gap-2">
-            <Logo className="h-7 w-7 text-primary" />
-            <span className="font-display font-bold text-lg tracking-tight">GlobalReach</span>
+            <img src="/logo-transparent.png" alt="GlobalReach" className="h-10 w-auto" />
           </div>
           <button className="md:hidden text-muted-foreground hover:text-foreground" onClick={() => setMobileOpen(false)} aria-label="Close navigation menu">
             <X className="h-5 w-5" />
