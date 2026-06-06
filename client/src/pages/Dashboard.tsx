@@ -129,6 +129,13 @@ export default function Dashboard() {
     s, count: shown.filter((l) => l.status === s).length,
   }));
 
+  // Top 5 leads to reach today — highest score, excluding won/lost
+  const topLeadsToReach = [...shown]
+    .filter(l => !["won", "lost"].includes(l.status))
+    .map(l => ({ ...l, _score: scoreLead(l) }))
+    .sort((a, b) => b._score - a._score)
+    .slice(0, 5);
+
   return (
     <div className="space-y-6">
       <div>
@@ -188,6 +195,47 @@ export default function Dashboard() {
             <div className="text-xs text-muted-foreground mt-1">of closed deals</div>
           </Card>
         </div>
+      )}
+
+      {/* Top leads to reach today */}
+      {topLeadsToReach.length > 0 && (
+        <Card className="p-5">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" />
+              <h2 className="font-display font-semibold">Top leads to reach today</h2>
+            </div>
+            <button onClick={() => navigate("/leads")} className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
+              View all <ArrowRight className="h-3 w-3" />
+            </button>
+          </div>
+          <div className="space-y-2">
+            {topLeadsToReach.map((l) => {
+              const info = scoreLabel(l._score);
+              return (
+                <div
+                  key={l.id}
+                  onClick={() => navigate("/leads")}
+                  className="flex items-center justify-between gap-3 p-2.5 rounded-lg hover-elevate border border-border/50 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary/20 to-teal-500/20 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                      {l.fullName.split(" ").map((p: string) => p[0]).join("").slice(0, 2)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium truncate">{l.fullName}</div>
+                      <div className="text-xs text-muted-foreground truncate">{l.company} · {l.title}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className={`text-xs font-semibold ${info.className}`}>{info.label}</span>
+                    <span className="text-xs text-muted-foreground/60 tabular-nums w-6 text-right">{l._score}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </Card>
       )}
 
       <div className="grid lg:grid-cols-3 gap-6">

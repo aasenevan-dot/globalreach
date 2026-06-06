@@ -156,6 +156,7 @@ try {
     if (!cols.includes("deal_value")) sqlite.exec("ALTER TABLE leads ADD COLUMN deal_value integer");
     if (!cols.includes("tags")) sqlite.exec("ALTER TABLE leads ADD COLUMN tags text NOT NULL DEFAULT ''");
     if (!cols.includes("notes")) sqlite.exec("ALTER TABLE leads ADD COLUMN notes text");
+    if (!cols.includes("created_at")) sqlite.exec("ALTER TABLE leads ADD COLUMN created_at text");
   }
 } catch { /* table may not exist yet on first boot */ }
 
@@ -366,6 +367,7 @@ export interface IStorage {
   deleteForm(id: number): Promise<boolean>;
   getFormSubmissions(formId: number): Promise<FormSubmission[]>;
   createFormSubmission(s: InsertFormSubmission): Promise<FormSubmission>;
+  updateFormSubmission(id: number, patch: Partial<{ convertedLeadId: number }>): Promise<void>;
 
   getFunnels(): Promise<Funnel[]>;
   getFunnel(id: number): Promise<Funnel | undefined>;
@@ -454,7 +456,7 @@ export class DatabaseStorage implements IStorage {
     return rows.find(l => l.email.toLowerCase() === email.toLowerCase()) ?? null;
   }
   async createLead(lead: InsertLead) {
-    return db.insert(leads).values(lead).returning().get();
+    return db.insert(leads).values({ ...lead, createdAt: lead.createdAt ?? new Date().toISOString() }).returning().get();
   }
   async createLeads(rows: InsertLead[]) {
     if (rows.length === 0) return [];
@@ -576,6 +578,11 @@ export class DatabaseStorage implements IStorage {
   }
   async createFormSubmission(s: InsertFormSubmission) {
     return db.insert(formSubmissions).values(s).returning().get();
+  }
+  async updateFormSubmission(id: number, patch: Partial<{ convertedLeadId: number }>) {
+    if (patch.convertedLeadId != null) {
+      sqlite.prepare("UPDATE form_submissions SET converted_lead_id = ? WHERE id = ?").run(patch.convertedLeadId, id);
+    }
   }
 
   async getFunnels() { return db.select().from(funnels).all(); }

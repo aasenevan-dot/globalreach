@@ -57,6 +57,7 @@ export const leads = sqliteTable("leads", {
   dealValue: integer("deal_value"),
   tags: text("tags").notNull().default(""), // comma-separated tags e.g. "enterprise,hot-intro,follow-up"
   notes: text("notes"), // freeform internal notes on this lead
+  createdAt: text("created_at"), // ISO 8601 timestamp of when the lead was created
 });
 
 export const insertLeadSchema = createInsertSchema(leads).omit({ id: true });

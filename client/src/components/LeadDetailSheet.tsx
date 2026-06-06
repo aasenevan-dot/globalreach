@@ -79,6 +79,11 @@ export function LeadDetailSheet({ leadId, onClose, onOpenLead }: { leadId: numbe
     queryKey: ["/api/leads"],
     enabled: leadId != null,
   });
+  // Collect all tags across every lead for autocomplete suggestions.
+  const existingTags = useMemo(() =>
+    Array.from(new Set((allLeads ?? []).flatMap(l => (l.tags || "").split(",").filter(Boolean)))).sort(),
+    [allLeads]
+  );
   const { data: messages } = useQuery<Message[]>({
     queryKey: ["/api/messages"],
     enabled: leadId != null,
@@ -294,6 +299,7 @@ export function LeadDetailSheet({ leadId, onClose, onOpenLead }: { leadId: numbe
                         ))}
                         <div className="flex items-center gap-1">
                           <input
+                            list="lead-tag-suggestions"
                             type="text"
                             value={newTag}
                             onChange={e => setNewTag(e.target.value.replace(/[^a-z0-9-]/g, ""))}
@@ -304,8 +310,13 @@ export function LeadDetailSheet({ leadId, onClose, onOpenLead }: { leadId: numbe
                               }
                             }}
                             placeholder="add tag"
-                            className="w-20 text-xs px-2 py-0.5 rounded-full border border-border bg-background focus:outline-none focus:border-primary/50"
+                            className="w-24 text-xs px-2 py-0.5 rounded-full border border-border bg-background focus:outline-none focus:border-primary/50"
                           />
+                          <datalist id="lead-tag-suggestions">
+                            {existingTags.filter(t => !(lead.tags || "").split(",").includes(t)).map(t => (
+                              <option key={t} value={t} />
+                            ))}
+                          </datalist>
                         </div>
                       </div>
                     </div>

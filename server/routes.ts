@@ -479,6 +479,8 @@ export async function registerRoutes(
           referredBy: `Form: ${form.name}`,
         });
         leadId = lead.id;
+        // Back-fill convertedLeadId on the submission row so conversions are trackable.
+        await storage.updateFormSubmission(sub.id, { convertedLeadId: lead.id }).catch(() => {});
         await storage.updateForm(form.id, { fields: form.fields }); // touch to update
         // Fire active automations for form_submitted trigger
         const allAutomations = await storage.getAutomations();

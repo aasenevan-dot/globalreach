@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useMode } from "@/lib/mode";
 import { useAudience } from "@/lib/audience";
@@ -38,6 +39,7 @@ function Stat({ icon: Icon, label, value, hint }: { icon: any; label: string; va
 export default function Analytics() {
   const { isInternational } = useMode();
   const { isConsumer } = useAudience();
+  const [dateRange, setDateRange] = useState<"7d" | "30d" | "90d" | "all">("all");
   const { data: leads, isLoading, error } = useQuery<Lead[]>({ queryKey: ["/api/leads"] });
   const { data: campaigns } = useQuery<Campaign[]>({ queryKey: ["/api/campaigns"] });
   const { data: messages } = useQuery<Message[]>({ queryKey: ["/api/messages"] });
@@ -72,9 +74,16 @@ export default function Analytics() {
   }
 
   const allLeads = leads ?? [];
-  const shownLeads = isInternational ? allLeads : allLeads.filter((l) => l.country === "United States");
+  // Compute cutoff date for the selected date range filter.
+  const filterAfter = dateRange === "all" ? null : (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - (dateRange === "7d" ? 7 : dateRange === "30d" ? 30 : 90));
+    return d.toISOString().slice(0, 10);
+  })();
+  const shownLeads = (isInternational ? allLeads : allLeads.filter((l) => l.country === "United States"))
+    .filter((l) => !filterAfter || !(l as any).createdAt || (l as any).createdAt >= filterAfter);
   const shownIds = new Set(shownLeads.map((l) => l.id));
-  const allMsgs = (messages ?? []).filter((m) => shownIds.has(m.leadId));
+  const allMsgs = (messages ?? []).filter((m) => shownIds.has(m.leadId) && (!filterAfter || m.createdAt >= filterAfter));
   const shownCampaigns = campaigns ?? [];
 
   // ---- Headline metrics ----
@@ -195,6 +204,20 @@ export default function Analytics() {
             ? "Performance across every market, language and channel."
             : "How your domestic outreach is performing."}
         </p>
+      </div>
+
+      {/* Date range filter */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-muted-foreground">Showing:</span>
+        {(["7d", "30d", "90d", "all"] as const).map((r) => (
+          <button
+            key={r}
+            onClick={() => setDateRange(r)}
+            className={"text-xs px-3 py-1.5 rounded-lg border transition-colors " + (dateRange === r ? "bg-primary text-primary-foreground border-primary" : "border-border hover:bg-muted/50 text-muted-foreground")}
+          >
+            {r === "all" ? "All time" : r === "7d" ? "Last 7 days" : r === "30d" ? "Last 30 days" : "Last 90 days"}
+          </button>
+        ))}
       </div>
 
       {/* Headline stats */}
