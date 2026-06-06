@@ -62,11 +62,15 @@ export function AppShell({ children, onOpenSearch }: { children: React.ReactNode
   // Live badge counts
   const { data: messages } = useQuery<Message[]>({ queryKey: ["/api/messages"] });
   const { data: automations } = useQuery<Automation[]>({ queryKey: ["/api/automations"] });
+  const { data: meetings } = useQuery<any[]>({ queryKey: ["/api/meetings"] });
   const inboxCount = (messages ?? []).filter(m => m.direction === "inbound" && m.status === "replied").length;
   const activeAutomations = (automations ?? []).filter((a: any) => a.active).length;
+  const todayISO = new Intl.DateTimeFormat("sv-SE").format(new Date());
+  const meetingsToday = (meetings ?? []).filter((m: any) => typeof m.datetime === "string" && m.datetime.slice(0, 10) === todayISO && m.status !== "cancelled").length;
   const badgeCounts: Record<string, number> = {
     "/inbox": inboxCount,
     "/automations": activeAutomations,
+    "/calendar": meetingsToday,
   };
 
   function SidebarContent() {
