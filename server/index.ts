@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express, { Response, NextFunction } from 'express';
 import type { Request } from 'express';
+import rateLimit from "express-rate-limit";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "node:http";
@@ -13,6 +14,29 @@ declare module "http" {
     rawBody: unknown;
   }
 }
+
+// General API rate limit: 300 req/min per IP
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many requests, please slow down." },
+  skip: (req) => req.path === "/api/track", // skip tracking pixel
+});
+
+// Strict rate limit for seed/clear endpoints: 5 req/min
+const seedLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Rate limit reached." },
+});
+
+app.use("/api", apiLimiter);
+app.use("/api/seed", seedLimiter);
+app.use("/api/data/clear-all", seedLimiter);
 
 app.use(
   express.json({

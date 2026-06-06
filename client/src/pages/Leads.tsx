@@ -71,6 +71,16 @@ export default function Leads() {
     return matchesQ && matchesCountry && matchesLang && matchesRegion;
   }), [base, q, country, language, region]);
 
+  // Open lead from search palette navigation
+  useEffect(() => {
+    const pendingId = sessionStorage.getItem("openLeadId");
+    if (pendingId) {
+      sessionStorage.removeItem("openLeadId");
+      const id = Number(pendingId);
+      if (id) setSelectedLead(id);
+    }
+  }, []);
+
   // Reset visible row count when filters change so the user starts from the top.
   useEffect(() => { setVisibleCount(ROWS_PER_PAGE); }, [filtered]);
 

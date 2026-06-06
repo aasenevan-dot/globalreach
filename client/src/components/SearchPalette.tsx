@@ -91,6 +91,7 @@ export function SearchPalette({ open, onClose }: { open: boolean; onClose: () =>
     if (r.type === "page" && r.href) {
       navigate(r.href);
     } else if (r.type === "lead" && r.id) {
+      sessionStorage.setItem("openLeadId", String(r.id));
       navigate(`/leads`);
     }
     onClose();

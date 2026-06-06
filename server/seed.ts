@@ -133,6 +133,24 @@ export async function runSeed() {
     await storage.createMessage({ leadId: jordan.id, channel: "email", direction: "outbound", language: "en", subject: "Quick idea for Brightline Logistics", body: "Hi Jordan, noticed Brightline is scaling...", scheduledFor: now(), localSendTime: "9:00 AM CDT", status: "replied", createdAt: now() } as any);
   }
 
+  // Seed activity log entries so the dashboard has something to show
+  for (const lead of createdLeads.slice(0, 10)) {
+    await storage.logActivity(lead.id, "lead.created", `Lead created: ${lead.fullName} at ${lead.company}`).catch(() => {});
+  }
+  // Add status progression events for some leads
+  const contacted = createdLeads.filter((l: any) => l.status === "contacted" || l.status === "engaged" || l.status === "meeting" || l.status === "won");
+  for (const lead of contacted.slice(0, 6)) {
+    await storage.logActivity(lead.id, "status.changed", `Status changed from new → ${lead.status}`).catch(() => {});
+  }
+  // Add message events for leads with messages
+  if (lukas) {
+    await storage.logActivity(lukas.id, "message.outbound", "Message sent via email: Kurze Idee für Rheinwerk GmbH").catch(() => {});
+    await storage.logActivity(lukas.id, "message.inbound", "Reply received via email: Re: Kurze Idee für Rheinwerk GmbH").catch(() => {});
+  }
+  if (jordan) {
+    await storage.logActivity(jordan.id, "message.outbound", "Message sent via email: Quick idea for Brightline Logistics").catch(() => {});
+  }
+
   return { leads: createdLeads.length, campaigns: createdCampaigns.length, jobs: createdJobs.length };
 }
 

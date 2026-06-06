@@ -65,38 +65,50 @@ async function deliverWebhook(
   const payloadString = JSON.stringify(payload);
   const signature = createSignature(webhook.secret, payloadString);
 
+  const MAX_ATTEMPTS = 3;
+  let attempt = 0;
   let statusCode: number | undefined;
   let responseBody: string | undefined;
   let error: string | undefined;
 
-  try {
-    const response = await fetch(webhook.url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Webhook-Signature': signature,
-        'X-Webhook-ID': String(webhook.id),
-        'X-Webhook-Timestamp': payload.timestamp,
-      },
-      body: payloadString,
-      signal: AbortSignal.timeout(30000),
-    });
-
-    statusCode = response.status;
-    responseBody = await response.text();
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${statusCode}: ${responseBody}`);
+  while (attempt < MAX_ATTEMPTS) {
+    if (attempt > 0) {
+      await new Promise(resolve => setTimeout(resolve, attempt * 1000));
     }
+    try {
+      const response = await fetch(webhook.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Webhook-Signature': signature,
+          'X-Webhook-ID': String(webhook.id),
+          'X-Webhook-Timestamp': payload.timestamp,
+          'X-Webhook-Retry': String(attempt),
+        },
+        body: payloadString,
+        signal: AbortSignal.timeout(15000),
+      });
 
-    // Success - reset failure count
-    await storage.updateWebhookFailureCount(webhook.id, 0);
-  } catch (err) {
-    error = err instanceof Error ? err.message : String(err);
+      statusCode = response.status;
+      responseBody = await response.text();
+
+      if (response.ok) {
+        error = undefined;
+        await storage.updateWebhookFailureCount(webhook.id, 0);
+        break; // success — exit loop
+      }
+      error = `HTTP ${statusCode}: ${responseBody}`;
+    } catch (err) {
+      error = err instanceof Error ? err.message : String(err);
+      statusCode = undefined;
+      responseBody = undefined;
+    }
+    attempt++;
+  }
+
+  if (error) {
     const newFailureCount = (webhook.failureCount || 0) + 1;
     await storage.updateWebhookFailureCount(webhook.id, newFailureCount);
-
-    // Disable webhook after 10 consecutive failures
     if (newFailureCount >= 10) {
       await storage.updateWebhook(webhook.id, { active: false });
       console.warn(`Webhook ${webhook.id} disabled after ${newFailureCount} failures`);
@@ -112,7 +124,7 @@ async function deliverWebhook(
     responseBody,
     error,
     deliveredAt: new Date().toISOString(),
-    retryCount: 0,
+    retryCount: attempt,
   });
 
   // Update last triggered timestamp on success
