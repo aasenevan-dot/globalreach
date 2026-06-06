@@ -93,7 +93,8 @@ try {
       status text NOT NULL DEFAULT 'new',
       referred_by text,
       deal_value integer,
-      tags text NOT NULL DEFAULT ''
+      tags text NOT NULL DEFAULT '',
+      notes text
     );
     CREATE TABLE IF NOT EXISTS campaigns (
       id integer PRIMARY KEY AUTOINCREMENT,
@@ -154,6 +155,7 @@ try {
     if (!cols.includes("referred_by")) sqlite.exec("ALTER TABLE leads ADD COLUMN referred_by text");
     if (!cols.includes("deal_value")) sqlite.exec("ALTER TABLE leads ADD COLUMN deal_value integer");
     if (!cols.includes("tags")) sqlite.exec("ALTER TABLE leads ADD COLUMN tags text NOT NULL DEFAULT ''");
+    if (!cols.includes("notes")) sqlite.exec("ALTER TABLE leads ADD COLUMN notes text");
   }
 } catch { /* table may not exist yet on first boot */ }
 

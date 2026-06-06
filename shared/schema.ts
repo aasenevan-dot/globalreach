@@ -56,6 +56,7 @@ export const leads = sqliteTable("leads", {
   // Closed-won deal value in whole US dollars. Drives referral-source ROI.
   dealValue: integer("deal_value"),
   tags: text("tags").notNull().default(""), // comma-separated tags e.g. "enterprise,hot-intro,follow-up"
+  notes: text("notes"), // freeform internal notes on this lead
 });
 
 export const insertLeadSchema = createInsertSchema(leads).omit({ id: true });
