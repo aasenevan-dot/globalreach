@@ -122,10 +122,7 @@ export default function BookMeeting() {
       <div className="bg-gray-900 min-h-screen lg:min-h-screen p-12 lg:sticky lg:top-0 flex flex-col justify-between">
         <div>
           {/* Logo */}
-          <div className="flex items-center gap-2">
-            <Globe className="h-7 w-7 text-teal-400" />
-            <span className="text-2xl font-black text-white">GlobalReach</span>
-          </div>
+          <img src="/logo-transparent.png" alt="GlobalReach" className="h-10 w-auto" />
 
           {/* Heading */}
           <h1 className="text-3xl font-bold text-white mt-8 mb-6">Schedule a Meeting</h1>

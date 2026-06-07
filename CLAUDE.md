@@ -141,6 +141,12 @@ shared/
 - **F2:** Lead pagination — `GET /api/leads` is now OPT-IN paginated: no `page`/`limit` params → full array as before (all the other consumers depend on this); with them → `{ data, page, limit, total, totalPages }`. Paginated mode also does server-side filtering via `search`/`country`/`language`/`state`/`status`. New `storage.getLeadsPage()` (SQL `LIMIT`/`OFFSET` + `COUNT`) and `storage.getLeadFacets()` + `GET /api/leads/facets` (distinct values for the filter dropdowns without downloading every row). Leads page **list/table view** is server-paginated with Prev / numbered / Next controls (debounced search resets to page 1; selection persists across pages for bulk ops). Territory & Map views still load the full set on demand; CSV export pulls the full filtered set so it's not capped to one page.
 - **F12:** Better API error messages — `server/lib/http-errors.ts` `zodError()`/`zodMessage()` turn `error.flatten()` into a human-readable `error` string plus structured `fieldErrors`/`formErrors`. All ~30 `parsed.error.flatten()` responses in `routes.ts` now use it; bulk-import per-row errors use `zodMessage()`. Client `throwIfResNotOk()` parses the JSON body and surfaces the server's `error`/`message` so toasts show what actually went wrong (wired `AddLeadDialog`/`EditLeadDialog` `onError`).
 
+### Sprint 7 (June 2026) — Branding polish
+- **Favicons:** regenerated crisp favicons from the globe mark via `script/make_favicons.py` (pure-stdlib, no Pillow). Replaced the blurry 64px `favicon.png`/`favicon.ico` with sharp 256px PNG + 16/32/48 ICO, added `favicon.svg` (vector, sharpest in modern tabs) and `apple-touch-icon.png` (180px). `index.html` now links svg → png → ico → apple-touch in that order. White globe on the red→teal gradient — matches the GlobalReach iOS app icon.
+- **BookMeeting logo:** the booking page's left rail used a generic lucide `<Globe>` + text wordmark for its header logo; replaced with the real `/logo-transparent.png` lockup (consistent with AppShell / AuthGate / Landing). The lucide `Globe` is still used for the legitimate info-row icons.
+- **`Logo.tsx`:** upgraded the inline globe mark to stroke with the brand red→teal gradient (`variant="gradient"` default, `"current"` for `currentColor`); unique per-instance gradient id via `useId()`.
+- **Companion app:** native iOS wrapper lives at `github.com/aasenevan-dot/globalreach-ios` (SwiftUI + WKWebView; tabs deep-link to the hash routes).
+
 ---
 
 ## What still needs to be done
