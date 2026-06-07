@@ -4,8 +4,20 @@ const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    const text = await res.text();
+    // Prefer the API's human-readable `error`/`message` field (e.g. surfaced
+    // Zod validation details) so toasts show what actually went wrong, falling
+    // back to the raw body or status text.
+    let message = text || res.statusText;
+    if (text) {
+      try {
+        const body = JSON.parse(text);
+        message = body?.error || body?.message || text;
+      } catch {
+        /* not JSON — keep raw text */
+      }
+    }
+    throw new Error(message);
   }
 }
 

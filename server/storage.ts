@@ -25,7 +25,7 @@ import type {
 } from '@shared/schema';
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "libsql";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and, or, like, sql } from "drizzle-orm";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -332,6 +332,17 @@ try {
 // drizzle adapter (verified), but its TS types differ — cast to bridge them.
 export const db = drizzle(sqlite as any);
 
+// Options for a server-side paginated + filtered lead query (Leads page table).
+export interface LeadPageOptions {
+  page: number;   // 1-based
+  limit: number;
+  search?: string;   // matches fullName / company / title (case-insensitive)
+  country?: string;
+  language?: string;
+  state?: string;    // US state code, e.g. "IN"
+  status?: string;   // lead status, e.g. "new" | "contacted" | ...
+}
+
 export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
@@ -341,6 +352,8 @@ export interface IStorage {
   updateSettings(patch: Partial<InsertSettings>): Promise<Settings>;
 
   getLeads(): Promise<Lead[]>;
+  getLeadsPage(opts: LeadPageOptions): Promise<{ rows: Lead[]; total: number }>;
+  getLeadFacets(): Promise<{ countries: string[]; languages: string[]; states: string[] }>;
   getLead(id: number): Promise<Lead | undefined>;
   getLeadByEmail(email: string): Promise<Lead | null>;
   createLead(lead: InsertLead): Promise<Lead>;
@@ -461,6 +474,66 @@ export class DatabaseStorage implements IStorage {
 
   async getLeads() {
     return db.select().from(leads).all();
+  }
+  async getLeadsPage(opts: LeadPageOptions) {
+    const page = Math.max(1, Math.floor(opts.page) || 1);
+    const limit = Math.min(500, Math.max(1, Math.floor(opts.limit) || 50));
+
+    const conds: any[] = [];
+    if (opts.country) conds.push(eq(leads.country, opts.country));
+    if (opts.language) conds.push(eq(leads.language, opts.language));
+    if (opts.state) conds.push(eq(leads.state, opts.state));
+    if (opts.status) conds.push(eq(leads.status, opts.status));
+    if (opts.search && opts.search.trim()) {
+      const term = `%${opts.search.trim().toLowerCase()}%`;
+      conds.push(
+        or(
+          like(sql`lower(${leads.fullName})`, term),
+          like(sql`lower(${leads.company})`, term),
+          like(sql`lower(${leads.title})`, term),
+        ),
+      );
+    }
+    const where = conds.length ? and(...conds) : undefined;
+
+    const countRow = db
+      .select({ count: sql<number>`count(*)` })
+      .from(leads)
+      .where(where)
+      .get() as { count: number } | undefined;
+    const total = countRow?.count ?? 0;
+
+    const rows = db
+      .select()
+      .from(leads)
+      .where(where)
+      .orderBy(leads.id)
+      .limit(limit)
+      .offset((page - 1) * limit)
+      .all() as Lead[];
+
+    return { rows, total };
+  }
+  // Distinct filter values across ALL leads — lets the Leads page populate its
+  // filter dropdowns without downloading every row (the table itself paginates).
+  async getLeadFacets() {
+    const rows = db
+      .select({ country: leads.country, language: leads.language, state: leads.state })
+      .from(leads)
+      .all() as { country: string; language: string; state: string | null }[];
+    const countries = new Set<string>();
+    const languages = new Set<string>();
+    const states = new Set<string>();
+    for (const r of rows) {
+      if (r.country) countries.add(r.country);
+      if (r.language) languages.add(r.language);
+      if (r.state) states.add(r.state);
+    }
+    return {
+      countries: [...countries].sort(),
+      languages: [...languages].sort(),
+      states: [...states].sort(),
+    };
   }
   async getLead(id: number) {
     return db.select().from(leads).where(eq(leads.id, id)).get();

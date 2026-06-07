@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useMode } from "@/lib/mode";
@@ -23,7 +23,20 @@ import { TerritoryMap } from "@/components/TerritoryMap";
 import { STATE_PATHS } from "@/lib/us-topo";
 import { useToast } from "@/hooks/use-toast";
 import { stateName, usLocationLabel } from "@/lib/geo-data";
-import { Search, CheckCircle2, Clock, Download, X, MapPin, List, LayoutGrid, Map as MapIcon } from "lucide-react";
+import { Search, CheckCircle2, Clock, Download, X, MapPin, List, LayoutGrid, Map as MapIcon, ChevronLeft, ChevronRight } from "lucide-react";
+
+// Build a compact page-number list with ellipses, e.g. [1, "…", 4, 5, 6, "…", 20].
+function pageNumbers(current: number, totalPages: number): (number | "…")[] {
+  if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+  const out: (number | "…")[] = [1];
+  const start = Math.max(2, current - 1);
+  const end = Math.min(totalPages - 1, current + 1);
+  if (start > 2) out.push("…");
+  for (let p = start; p <= end; p++) out.push(p);
+  if (end < totalPages - 1) out.push("…");
+  out.push(totalPages);
+  return out;
+}
 
 // Quote a CSV cell when it contains a comma, quote, or newline.
 function csvCell(v: unknown): string {
@@ -34,8 +47,8 @@ function csvCell(v: unknown): string {
 export default function Leads() {
   const { isInternational } = useMode();
   const { toast } = useToast();
-  const { data: leads, isLoading, error } = useQuery<Lead[]>({ queryKey: ["/api/leads"] });
   const [q, setQ] = useState("");
+  const [debouncedQ, setDebouncedQ] = useState("");
   const [country, setCountry] = useState("all");
   const [language, setLanguage] = useState("all");
   const [region, setRegion] = useState("all"); // US state code in Local mode
@@ -44,34 +57,86 @@ export default function Leads() {
   const [selectedState, setSelectedState] = useState<string | null>(null); // FIPS id of a clicked state on the map
   const [selectedLead, setSelectedLead] = useState<number | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
-  const ROWS_PER_PAGE = 50;
-  const [visibleCount, setVisibleCount] = useState(ROWS_PER_PAGE);
+  const [page, setPage] = useState(1);
+  const LIMIT = 50;
 
-  const all = leads ?? [];
-  // Local mode only ever shows domestic contacts.
-  const base = isInternational ? all : all.filter((l) => l.country === "United States");
+  // The list/table view paginates server-side; territory & map views need the
+  // full set, so they load it on demand (and keep client-side filtering).
+  const tableView = view === "list" || (view === "map" && isInternational);
+  const needAllLeads = view === "territory" || (view === "map" && !isInternational);
 
-  const countries = useMemo(() => [...new Set(base.map((l) => l.country))], [base]);
-  const languages = useMemo(() => [...new Set(base.map((l) => l.language))], [base]);
-  // Distinct US states present in the data, sorted by full name (Local mode territory filter).
+  // Debounce the search box so we don't fire a request per keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  // Filter dropdown options come from a lightweight facets endpoint so the page
+  // doesn't have to download every lead just to populate the selects.
+  const { data: facets } = useQuery<{ countries: string[]; languages: string[]; states: string[] }>({
+    queryKey: ["/api/leads/facets"],
+  });
+  const countries = facets?.countries ?? [];
+  const languages = facets?.languages ?? [];
+  // US states present in the data, sorted by full name (Local mode territory filter).
   const regions = useMemo(
-    () => [...new Set(base.map((l) => l.state).filter((s): s is string => !!s))]
-      .sort((a, b) => stateName(a).localeCompare(stateName(b))),
-    [base],
+    () => [...(facets?.states ?? [])].sort((a, b) => stateName(a).localeCompare(stateName(b))),
+    [facets],
   );
 
+  // Server-side query params for the paginated table query. Local mode pins the
+  // country to the home market; International mode honors the country/language
+  // selects. Search applies in both.
+  const serverParams = useMemo(() => {
+    const p: Record<string, string> = { page: String(page), limit: String(LIMIT) };
+    if (debouncedQ.trim()) p.search = debouncedQ.trim();
+    if (isInternational) {
+      if (country !== "all") p.country = country;
+      if (language !== "all") p.language = language;
+    } else {
+      p.country = "United States";
+      if (region !== "all") p.state = region;
+    }
+    if (statusFilter !== "all") p.status = statusFilter;
+    return p;
+  }, [page, debouncedQ, country, language, region, statusFilter, isInternational]);
+
+  const pageQuery = useQuery<{ data: Lead[]; total: number; page: number; limit: number; totalPages: number }>({
+    queryKey: ["/api/leads", serverParams],
+    queryFn: async () => {
+      const res = await apiRequest("GET", `/api/leads?${new URLSearchParams(serverParams).toString()}`);
+      return res.json();
+    },
+    enabled: tableView,
+  });
+
+  // Full set for territory / map views only (kept client-side filtered).
+  const allQuery = useQuery<Lead[]>({ queryKey: ["/api/leads"], enabled: needAllLeads });
+  const all = allQuery.data ?? [];
+  // Local mode only ever shows domestic contacts.
+  const base = isInternational ? all : all.filter((l) => l.country === "United States");
   const filtered = useMemo(() => base.filter((l) => {
     const matchesQ =
-      !q ||
-      l.fullName.toLowerCase().includes(q.toLowerCase()) ||
-      l.company.toLowerCase().includes(q.toLowerCase()) ||
-      l.title.toLowerCase().includes(q.toLowerCase());
+      !debouncedQ ||
+      l.fullName.toLowerCase().includes(debouncedQ.toLowerCase()) ||
+      l.company.toLowerCase().includes(debouncedQ.toLowerCase()) ||
+      l.title.toLowerCase().includes(debouncedQ.toLowerCase());
     const matchesCountry = country === "all" || l.country === country;
     const matchesLang = language === "all" || l.language === language;
     const matchesRegion = region === "all" || l.state === region;
     const matchesStatus = statusFilter === "all" || l.status === statusFilter;
     return matchesQ && matchesCountry && matchesLang && matchesRegion && matchesStatus;
-  }), [base, q, country, language, region, statusFilter]);
+  }), [base, debouncedQ, country, language, region, statusFilter]);
+
+  // The rows currently shown in the table (one server page).
+  const pageRows = pageQuery.data?.data ?? [];
+  const total = pageQuery.data?.total ?? 0;
+  const totalPages = pageQuery.data?.totalPages ?? 1;
+  const currentPage = pageQuery.data?.page ?? page;
+  const displayCount = tableView ? total : filtered.length;
+
+  const isLoading = tableView ? pageQuery.isLoading : allQuery.isLoading;
+  const error = tableView ? pageQuery.error : allQuery.error;
 
   // Open lead from search palette navigation
   useEffect(() => {
@@ -83,12 +148,9 @@ export default function Leads() {
     }
   }, []);
 
-  // Reset visible row count when filters change so the user starts from the top.
-  useEffect(() => { setVisibleCount(ROWS_PER_PAGE); }, [filtered]);
-
-  const displayedRows = filtered.slice(0, visibleCount);
-  const hasMore = visibleCount < filtered.length;
-  const loadMore = useCallback(() => setVisibleCount((c) => c + ROWS_PER_PAGE), []);
+  // When filters change, jump back to page 1 and drop selections (which may now
+  // point at leads outside the current result set).
+  useEffect(() => { setPage(1); setSelectedIds(new Set()); }, [debouncedQ, country, language, region, statusFilter, isInternational]);
 
   // Territory grouping: bucket filtered leads by metro (Local) or country (Intl), sorted by size.
   const territories = useMemo(() => {
@@ -103,10 +165,11 @@ export default function Leads() {
     return [...map.entries()].sort((a, b) => b[1].length - a[1].length);
   }, [filtered, isInternational]);
 
-  // Only keep selections that are still visible under the current filters.
-  const visibleSelected = filtered.filter((l) => selectedIds.has(l.id));
-  const allVisibleSelected = filtered.length > 0 && visibleSelected.length === filtered.length;
-  const someVisibleSelected = visibleSelected.length > 0 && !allVisibleSelected;
+  // Selection persists across pages (bulk ops act on every selected id); the
+  // header checkbox reflects just the rows on the current page.
+  const selectedOnPage = pageRows.filter((l) => selectedIds.has(l.id));
+  const allPageSelected = pageRows.length > 0 && selectedOnPage.length === pageRows.length;
+  const somePageSelected = selectedOnPage.length > 0 && !allPageSelected;
 
   const setStatusMut = useMutation({
     mutationFn: async (status: string) =>
@@ -155,14 +218,24 @@ export default function Leads() {
   function toggleAllVisible(on: boolean) {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      filtered.forEach((l) => { if (on) next.add(l.id); else next.delete(l.id); });
+      pageRows.forEach((l) => { if (on) next.add(l.id); else next.delete(l.id); });
       return next;
     });
   }
 
+  // Fetch every lead matching the current filters (the table only holds one
+  // server page, so export pulls the full matching set in one shot).
+  async function fetchAllMatching(): Promise<Lead[]> {
+    const params = { ...serverParams, page: "1", limit: "100000" };
+    const res = await apiRequest("GET", `/api/leads?${new URLSearchParams(params).toString()}`);
+    const body = await res.json();
+    return (body.data ?? []) as Lead[];
+  }
+
   // Export the currently filtered rows to a CSV download (no localStorage — uses a Blob URL).
-  function exportCsv() {
-    const rows = visibleSelected.length > 0 ? visibleSelected : filtered;
+  async function exportCsv() {
+    const source = tableView ? await fetchAllMatching() : filtered;
+    const rows = selectedIds.size > 0 ? source.filter((l) => selectedIds.has(l.id)) : source;
     const header = ["full_name", "title", "company", "email", "phone", "country", "city", "state", "metro", "industry", "company_size", "language", "timezone", "status", "verified"];
     const lines = [header.join(",")];
     rows.forEach((l) => {
@@ -208,8 +281,8 @@ export default function Leads() {
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             {isInternational
-              ? `${base.length} verified B2B contacts across ${countries.length} countries.`
-              : `${base.length} verified B2B contacts in your home market.`}
+              ? `${displayCount} verified B2B contacts across ${countries.length} countries.`
+              : `${displayCount} verified B2B contacts in your home market.`}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -217,7 +290,7 @@ export default function Leads() {
             <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
             Real-time email verification
           </Badge>
-          <Button variant="outline" className="gap-1.5" onClick={exportCsv} disabled={filtered.length === 0} data-testid="button-export-csv">
+          <Button variant="outline" className="gap-1.5" onClick={exportCsv} disabled={displayCount === 0} data-testid="button-export-csv">
             <Download className="h-4 w-4" /> Export
           </Button>
           <ImportLeadsDialog />
@@ -327,9 +400,9 @@ export default function Leads() {
               <tr className="border-b border-border text-left text-muted-foreground">
                 <th className="px-4 py-3 w-10">
                   <Checkbox
-                    checked={allVisibleSelected ? true : someVisibleSelected ? "indeterminate" : false}
+                    checked={allPageSelected ? true : somePageSelected ? "indeterminate" : false}
                     onCheckedChange={(v) => toggleAllVisible(!!v)}
-                    aria-label="Select all"
+                    aria-label="Select all on this page"
                     data-testid="checkbox-select-all"
                   />
                 </th>
@@ -343,7 +416,7 @@ export default function Leads() {
               </tr>
             </thead>
             <tbody>
-              {displayedRows.map((l) => {
+              {pageRows.map((l) => {
                 const t = isInternational ? localTimeIn(l.timezone) : null;
                 const checked = selectedIds.has(l.id);
                 return (
@@ -427,16 +500,52 @@ export default function Leads() {
             </tbody>
           </table>
         </div>
-        {filtered.length === 0 && (
+        {!isLoading && pageRows.length === 0 && (
           <div className="p-8 text-center text-muted-foreground text-sm">No leads match your filters.</div>
         )}
-        {filtered.length > 0 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-border text-sm text-muted-foreground">
-            <span>Showing {displayedRows.length} of {filtered.length} leads</span>
-            {hasMore && (
-              <Button variant="outline" size="sm" onClick={loadMore} data-testid="button-load-more">
-                Load more
-              </Button>
+        {total > 0 && (
+          <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-t border-border text-sm text-muted-foreground">
+            <span data-testid="text-pagination-range">
+              Showing {(currentPage - 1) * LIMIT + 1}–{Math.min(currentPage * LIMIT, total)} of {total} leads
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1" role="navigation" aria-label="Pagination">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1 || pageQuery.isFetching}
+                  data-testid="button-page-prev"
+                >
+                  <ChevronLeft className="h-4 w-4" /> Prev
+                </Button>
+                {pageNumbers(currentPage, totalPages).map((p, i) =>
+                  p === "…" ? (
+                    <span key={`gap-${i}`} className="px-1.5 text-muted-foreground">…</span>
+                  ) : (
+                    <Button
+                      key={p}
+                      variant={p === currentPage ? "default" : "outline"}
+                      size="sm"
+                      className="min-w-9 tabular-nums"
+                      onClick={() => setPage(p)}
+                      aria-current={p === currentPage ? "page" : undefined}
+                      data-testid={`button-page-${p}`}
+                    >
+                      {p}
+                    </Button>
+                  ),
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages || pageQuery.isFetching}
+                  data-testid="button-page-next"
+                >
+                  Next <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
             )}
           </div>
         )}
@@ -573,7 +682,7 @@ export default function Leads() {
       <LeadDetailSheet leadId={selectedLead} onClose={() => setSelectedLead(null)} onOpenLead={(id) => setSelectedLead(id)} />
 
       <BulkActionBar
-        selectedCount={visibleSelected.length}
+        selectedCount={selectedIds.size}
         onStatusChange={(status) => setStatusMut.mutate(status)}
         onDelete={() => deleteMut.mutate()}
         onEnrollCampaign={() => {

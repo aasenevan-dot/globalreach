@@ -10,6 +10,7 @@ import {
   insertMeetingSchema, insertSavedFilterSchema, insertWebhookSchema,
 } from "@shared/schema";
 import { fireWebhookEvent } from "./lib/webhooks";
+import { zodError, zodMessage } from "./lib/http-errors";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -21,13 +22,46 @@ export async function registerRoutes(
   });
   app.patch("/api/settings", async (req, res) => {
     const parsed = insertSettingsSchema.partial().safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    if (!parsed.success) return res.status(400).json(zodError(parsed.error));
     res.json(await storage.updateSettings(parsed.data));
   });
 
   // ---- Leads ----
-  app.get("/api/leads", async (_req, res) => {
-    res.json(await storage.getLeads());
+  // Pagination is OPT-IN: with no `page`/`limit` query params this returns the
+  // full array exactly as before (many components rely on that). When either is
+  // present it returns a paginated envelope and supports server-side filtering
+  // via `search`, `country`, `language`, `state` — used by the Leads page table.
+  app.get("/api/leads", async (req, res) => {
+    const { page, limit, search, country, language, state, status } = req.query;
+    const paginated = page !== undefined || limit !== undefined;
+    if (!paginated) {
+      return res.json(await storage.getLeads());
+    }
+    const pageNum = Math.max(1, parseInt(String(page ?? "1"), 10) || 1);
+    const limitNum = Math.min(500, Math.max(1, parseInt(String(limit ?? "50"), 10) || 50));
+    const { rows, total } = await storage.getLeadsPage({
+      page: pageNum,
+      limit: limitNum,
+      search: typeof search === "string" ? search : undefined,
+      country: typeof country === "string" && country !== "all" ? country : undefined,
+      language: typeof language === "string" && language !== "all" ? language : undefined,
+      state: typeof state === "string" && state !== "all" ? state : undefined,
+      status: typeof status === "string" && status !== "all" ? status : undefined,
+    });
+    res.json({
+      data: rows,
+      page: pageNum,
+      limit: limitNum,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / limitNum)),
+    });
+  });
+  // Distinct filter values across all leads (for the Leads page filter dropdowns).
+  // Must be declared before "/api/leads/:id" to avoid route shadowing.
+  app.get("/api/leads/facets", async (_req, res) => {
+    try {
+      res.json(await storage.getLeadFacets());
+    } catch (e: any) { res.status(500).json({ error: e.message || "Failed to load facets" }); }
   });
   // ---- Lead CSV Export (must be before /api/leads/:id to avoid route shadowing) ----
   app.get("/api/leads/export", async (_req, res) => {
@@ -76,7 +110,7 @@ export async function registerRoutes(
   app.post("/api/leads", async (req, res) => {
     try {
       const parsed = insertLeadSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      if (!parsed.success) return res.status(400).json(zodError(parsed.error));
       const lead = await storage.createLead(parsed.data);
       storage.logActivity(lead.id, "lead.created", `Lead created: ${lead.fullName} at ${lead.company}`).catch(() => {});
       // Fire lead_created automations
@@ -111,7 +145,7 @@ export async function registerRoutes(
       rows.forEach((r: unknown, i: number) => {
         const parsed = insertLeadSchema.safeParse(r);
         if (parsed.success) valid.push(parsed.data);
-        else errors.push({ row: i, message: "Invalid row" });
+        else errors.push({ row: i, message: zodMessage(parsed.error) });
       });
       const created = await storage.createLeads(valid);
       res.json({ created: created.length, skipped: errors.length, errors });
@@ -138,7 +172,7 @@ export async function registerRoutes(
   });
   app.patch("/api/leads/:id", async (req, res) => {
     const parsed = insertLeadSchema.partial().safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    if (!parsed.success) return res.status(400).json(zodError(parsed.error));
     const id = Number(req.params.id);
     const prev = await storage.getLead(id);
     const updated = await storage.updateLead(id, parsed.data);
@@ -196,13 +230,13 @@ export async function registerRoutes(
   app.post("/api/campaigns", async (req, res) => {
     try {
       const parsed = insertCampaignSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      if (!parsed.success) return res.status(400).json(zodError(parsed.error));
       res.json(await storage.createCampaign(parsed.data));
     } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create campaign" }); }
   });
   app.patch("/api/campaigns/:id", async (req, res) => {
     const parsed = insertCampaignSchema.partial().safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    if (!parsed.success) return res.status(400).json(zodError(parsed.error));
     const updated = await storage.updateCampaign(Number(req.params.id), parsed.data);
     if (!updated) return res.status(404).json({ error: "Not found" });
     res.json(updated);
@@ -325,13 +359,13 @@ export async function registerRoutes(
   app.post("/api/steps", async (req, res) => {
     try {
       const parsed = insertStepSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      if (!parsed.success) return res.status(400).json(zodError(parsed.error));
       res.json(await storage.createStep(parsed.data));
     } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create step" }); }
   });
   app.patch("/api/steps/:id", async (req, res) => {
     const parsed = insertStepSchema.partial().safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    if (!parsed.success) return res.status(400).json(zodError(parsed.error));
     const updated = await storage.updateStep(Number(req.params.id), parsed.data);
     if (!updated) return res.status(404).json({ error: "Not found" });
     res.json(updated);
@@ -350,7 +384,7 @@ export async function registerRoutes(
   app.post("/api/messages", async (req, res) => {
     try {
       const parsed = insertMessageSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      if (!parsed.success) return res.status(400).json(zodError(parsed.error));
       const msg = await storage.createMessage(parsed.data);
       const dir = parsed.data.direction === "inbound" ? "Reply received" : "Message sent";
       const ch = parsed.data.channel ?? "email";
@@ -380,13 +414,13 @@ export async function registerRoutes(
       // createdAt is server-set so the client doesn't have to send it.
       const body = { createdAt: new Date().toISOString(), ...req.body };
       const parsed = insertJobSchema.safeParse(body);
-      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      if (!parsed.success) return res.status(400).json(zodError(parsed.error));
       res.json(await storage.createJob(parsed.data));
     } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create job" }); }
   });
   app.patch("/api/jobs/:id", async (req, res) => {
     const parsed = insertJobSchema.partial().safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    if (!parsed.success) return res.status(400).json(zodError(parsed.error));
     const updated = await storage.updateJob(Number(req.params.id), parsed.data);
     if (!updated) return res.status(404).json({ error: "Not found" });
     res.json(updated);
@@ -432,13 +466,13 @@ export async function registerRoutes(
   app.post("/api/forms", async (req, res) => {
     try {
       const parsed = insertFormSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      if (!parsed.success) return res.status(400).json(zodError(parsed.error));
       res.json(await storage.createForm(parsed.data));
     } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create form" }); }
   });
   app.patch("/api/forms/:id", async (req, res) => {
     const parsed = insertFormSchema.partial().safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    if (!parsed.success) return res.status(400).json(zodError(parsed.error));
     const updated = await storage.updateForm(Number(req.params.id), parsed.data);
     if (!updated) return res.status(404).json({ error: "Not found" });
     res.json(updated);
@@ -514,13 +548,13 @@ export async function registerRoutes(
   app.post("/api/funnels", async (req, res) => {
     try {
       const parsed = insertFunnelSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      if (!parsed.success) return res.status(400).json(zodError(parsed.error));
       res.json(await storage.createFunnel(parsed.data));
     } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create funnel" }); }
   });
   app.patch("/api/funnels/:id", async (req, res) => {
     const parsed = insertFunnelSchema.partial().safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    if (!parsed.success) return res.status(400).json(zodError(parsed.error));
     const updated = await storage.updateFunnel(Number(req.params.id), parsed.data);
     if (!updated) return res.status(404).json({ error: "Not found" });
     res.json(updated);
@@ -636,7 +670,7 @@ export async function registerRoutes(
   app.post("/api/meetings", async (req, res) => {
     try {
       const parsed = insertMeetingSchema.safeParse({ ...req.body, createdAt: new Date().toISOString() });
-      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      if (!parsed.success) return res.status(400).json(zodError(parsed.error));
       res.json(await storage.createMeeting(parsed.data));
     } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create meeting" }); }
   });
@@ -1158,13 +1192,13 @@ export async function registerRoutes(
   app.post("/api/automations", async (req, res) => {
     try {
       const parsed = insertAutomationSchema.safeParse(req.body);
-      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      if (!parsed.success) return res.status(400).json(zodError(parsed.error));
       res.json(await storage.createAutomation(parsed.data));
     } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create automation" }); }
   });
   app.patch("/api/automations/:id", async (req, res) => {
     const parsed = insertAutomationSchema.partial().safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    if (!parsed.success) return res.status(400).json(zodError(parsed.error));
     const updated = await storage.updateAutomation(Number(req.params.id), parsed.data);
     if (!updated) return res.status(404).json({ error: "Not found" });
     res.json(updated);
@@ -1191,13 +1225,13 @@ export async function registerRoutes(
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       });
-      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      if (!parsed.success) return res.status(400).json(zodError(parsed.error));
       res.json(await storage.createSavedFilter(parsed.data));
     } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create filter" }); }
   });
   app.patch("/api/filters/:id", async (req, res) => {
     const parsed = insertSavedFilterSchema.partial().safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    if (!parsed.success) return res.status(400).json(zodError(parsed.error));
     const updated = await storage.updateSavedFilter(Number(req.params.id), parsed.data);
     if (!updated) return res.status(404).json({ error: "Not found" });
     res.json(updated);
@@ -1226,13 +1260,13 @@ export async function registerRoutes(
         secret: generateWebhookSecret(),
         createdAt: new Date().toISOString(),
       });
-      if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+      if (!parsed.success) return res.status(400).json(zodError(parsed.error));
       res.json(await storage.createWebhook(parsed.data));
     } catch (e: any) { res.status(500).json({ error: e.message || "Failed to create webhook" }); }
   });
   app.patch("/api/webhooks/:id", async (req, res) => {
     const parsed = insertWebhookSchema.partial().safeParse(req.body);
-    if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
+    if (!parsed.success) return res.status(400).json(zodError(parsed.error));
     const updated = await storage.updateWebhook(Number(req.params.id), parsed.data);
     if (!updated) return res.status(404).json({ error: "Not found" });
     res.json(updated);

@@ -97,7 +97,7 @@ export function EditLeadDialog({
       toast({ title: "Lead updated", description: `${form.fullName} saved.` });
       onOpenChange(false);
     },
-    onError: () => toast({ title: "Couldn't save", description: "Check the required fields.", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Couldn't save", description: err?.message || "Check the required fields.", variant: "destructive" }),
   });
 
   const valid = form.fullName.trim() && form.company.trim() && form.email.trim() && isValidEmail(form.email);

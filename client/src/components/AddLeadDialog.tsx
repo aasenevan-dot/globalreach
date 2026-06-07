@@ -74,7 +74,7 @@ export function AddLeadDialog() {
       setForm({ ...EMPTY });
       setOpen(false);
     },
-    onError: () => toast({ title: "Couldn't add lead", description: "Check the required fields.", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Couldn't add lead", description: err?.message || "Check the required fields.", variant: "destructive" }),
   });
 
   const valid = form.fullName.trim() && form.company.trim() && form.email.trim() && isValidEmail(form.email);
