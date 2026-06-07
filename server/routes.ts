@@ -681,7 +681,7 @@ export async function registerRoutes(
       if (smtpConfigured) {
         try {
           const { sendEmail, buildHtml } = await import("./lib/email");
-          const emailCfg = { host: cfg.smtpHost, port: cfg.smtpPort, secure: cfg.smtpSecure, user: cfg.smtpUser, pass: cfg.smtpPass, fromName: cfg.smtpFromName, fromEmail: cfg.smtpFromEmail };
+          const emailCfg = { host: cfg.smtpHost, port: cfg.smtpPort, secure: cfg.smtpSecure, user: cfg.smtpUser, pass: cfg.smtpPass, fromName: cfg.smtpFromName || "GlobalReach", fromEmail: cfg.smtpFromEmail || cfg.smtpUser };
           let when = datetime;
           try {
             when = new Date(datetime).toLocaleString("en-US", { dateStyle: "full", timeStyle: "short", timeZone: cfg.timezone || "America/New_York" }) + ` (${cfg.timezone || "America/New_York"})`;
@@ -690,6 +690,12 @@ export async function registerRoutes(
           const html = buildHtml("Your meeting is confirmed", body, name.split(" ")[0] || name);
           const result = await sendEmail(emailCfg, email, "Your meeting is confirmed — Discovery Call", html);
           if (!result.success) console.error("Booking confirmation email failed:", result.error);
+          // Also notify the host
+          if (cfg.smtpFromEmail && cfg.smtpFromEmail !== email) {
+            const hostBody = `New booking received!\n\n👤 ${name}${company ? ` — ${company}` : ""}\n📧 ${email}\n📅 ${when}\n\n${notes ? `Notes: ${notes}` : "No notes provided."}`;
+            const hostHtml = buildHtml("New Booking", hostBody, "there");
+            await sendEmail(emailCfg, cfg.smtpFromEmail, `New booking: ${name}`, hostHtml);
+          }
         } catch (e) {
           console.error("Booking confirmation email error:", e instanceof Error ? e.message : String(e));
         }

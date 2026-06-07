@@ -19,7 +19,7 @@ const STAGES = ["new", "contacted", "engaged", "meeting", "won", "lost"];
 // Accent bar color per stage (Tailwind bg classes, mirrors STATUS_META tones).
 const STAGE_ACCENT: Record<string, string> = {
   new: "bg-slate-400",
-  contacted: "bg-blue-500",
+  contacted: "bg-teal-400",
   engaged: "bg-teal-500",
   meeting: "bg-amber-500",
   won: "bg-emerald-500",

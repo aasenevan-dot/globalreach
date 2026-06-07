@@ -39,6 +39,7 @@ export default function Leads() {
   const [country, setCountry] = useState("all");
   const [language, setLanguage] = useState("all");
   const [region, setRegion] = useState("all"); // US state code in Local mode
+  const [statusFilter, setStatusFilter] = useState("all");
   const [view, setView] = useState<"list" | "territory" | "map">("list");
   const [selectedState, setSelectedState] = useState<string | null>(null); // FIPS id of a clicked state on the map
   const [selectedLead, setSelectedLead] = useState<number | null>(null);
@@ -68,8 +69,9 @@ export default function Leads() {
     const matchesCountry = country === "all" || l.country === country;
     const matchesLang = language === "all" || l.language === language;
     const matchesRegion = region === "all" || l.state === region;
-    return matchesQ && matchesCountry && matchesLang && matchesRegion;
-  }), [base, q, country, language, region]);
+    const matchesStatus = statusFilter === "all" || l.status === statusFilter;
+    return matchesQ && matchesCountry && matchesLang && matchesRegion && matchesStatus;
+  }), [base, q, country, language, region, statusFilter]);
 
   // Open lead from search palette navigation
   useEffect(() => {
@@ -269,6 +271,16 @@ export default function Leads() {
             </Select>
           </>
         )}
+        {/* Status filter — always visible */}
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-36" data-testid="select-status"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All stages</SelectItem>
+            {Object.entries(STATUS_META).map(([key, meta]) => (
+              <SelectItem key={key} value={key}>{(meta as any).label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {/* List vs Territory view toggle */}
         <div className="flex items-center rounded-md border border-border p-0.5" role="radiogroup" aria-label="View mode">
           <button
