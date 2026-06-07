@@ -48,6 +48,12 @@ export default function Pipeline() {
       queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
       toast({ title: "Lead moved", description: `Stage set to ${STATUS_META[status]?.label ?? status}.` });
     },
+    onError: (_err, { id }) => {
+      // PATCH failed — drop the optimistic override so the card snaps back to its
+      // real (server) stage instead of silently appearing to have moved.
+      setPending((p) => { const n = { ...p }; delete n[id]; return n; });
+      toast({ variant: "destructive", title: "Couldn't move lead", description: "The change didn't save. Please try again." });
+    },
     onSettled: (_res, _err, { id }) => {
       setPending((p) => { const n = { ...p }; delete n[id]; return n; });
     },

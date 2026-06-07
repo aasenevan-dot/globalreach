@@ -675,6 +675,25 @@ export async function registerRoutes(
       } catch (e) {
         console.error("Failed to create lead from booking:", e instanceof Error ? e.message : String(e));
       }
+      // Send a confirmation email to the booker — only if SMTP is configured, otherwise skip gracefully.
+      const cfg = await storage.getCalendarSettings();
+      const smtpConfigured = !!(cfg.smtpHost && cfg.smtpUser && cfg.smtpPass);
+      if (smtpConfigured) {
+        try {
+          const { sendEmail, buildHtml } = await import("./lib/email");
+          const emailCfg = { host: cfg.smtpHost, port: cfg.smtpPort, secure: cfg.smtpSecure, user: cfg.smtpUser, pass: cfg.smtpPass, fromName: cfg.smtpFromName, fromEmail: cfg.smtpFromEmail };
+          let when = datetime;
+          try {
+            when = new Date(datetime).toLocaleString("en-US", { dateStyle: "full", timeStyle: "short", timeZone: cfg.timezone || "America/New_York" }) + ` (${cfg.timezone || "America/New_York"})`;
+          } catch { /* fall back to raw datetime string */ }
+          const body = `Your Discovery Call with ${cfg.smtpFromName || "GlobalReach"} is confirmed.\n\nWhen: ${when}\nDuration: 30 minutes${company ? `\nCompany: ${company}` : ""}${notes ? `\n\nYour note: ${notes}` : ""}\n\nWe look forward to speaking with you. If you need to reschedule, just reply to this email.`;
+          const html = buildHtml("Your meeting is confirmed", body, name.split(" ")[0] || name);
+          const result = await sendEmail(emailCfg, email, "Your meeting is confirmed — Discovery Call", html);
+          if (!result.success) console.error("Booking confirmation email failed:", result.error);
+        } catch (e) {
+          console.error("Booking confirmation email error:", e instanceof Error ? e.message : String(e));
+        }
+      }
       res.json({ ok: true, meeting });
     } catch (e: any) { res.status(500).json({ error: e.message || "Booking confirmation failed" }); }
   });
