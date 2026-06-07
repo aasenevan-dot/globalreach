@@ -24,12 +24,79 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Mail, Phone, Smartphone, MessageCircle, Linkedin, Globe, Clock, Languages,
   ChevronRight, ArrowLeft, Wand2, Play, Pause, Pencil, Trash2, Check, X, Copy, Send,
-  AlertCircle, CheckCircle2, Users,
+  AlertCircle, CheckCircle2, Users, BarChart3,
 } from "lucide-react";
 
 const CHANNEL_ICONS: Record<string, any> = {
   email: Mail, call: Phone, sms: Smartphone, whatsapp: MessageCircle, linkedin: Linkedin,
 };
+
+interface StepStat {
+  stepId: number;
+  stepOrder: number;
+  channel: string;
+  subject: string | null;
+  delayDays: number;
+  leads: number;
+  sent: number;
+  opened: number;
+  replied: number;
+  openRate: number;
+  replyRate: number;
+}
+
+// Per-step campaign performance (F3): where leads sit in the sequence and how
+// each step converts. The leads bars are scaled to the busiest step so the
+// drop-off down the sequence reads at a glance.
+function StepPerformance({ steps, unattributed }: { steps: StepStat[]; unattributed: number }) {
+  const maxLeads = Math.max(...steps.map((s) => s.leads), 1);
+  return (
+    <Card className="p-5" data-testid="card-step-performance">
+      <div className="flex items-center gap-2 mb-4">
+        <BarChart3 className="h-4 w-4 text-primary" />
+        <h2 className="font-display font-semibold">Per-Step Performance</h2>
+      </div>
+      <div className="space-y-4">
+        {steps.map((s) => {
+          const Icon = CHANNEL_ICONS[s.channel] ?? Mail;
+          return (
+            <div key={s.stepId} data-testid={`step-stat-${s.stepOrder}`}>
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-bold">{s.stepOrder}</span>
+                  <Icon className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <span className="text-sm font-medium capitalize">{CHANNELS[s.channel]?.label ?? s.channel}</span>
+                  <span className="text-xs text-muted-foreground truncate">
+                    {s.delayDays === 0 ? "Immediately" : `Day ${s.delayDays}`}
+                    {s.subject ? ` · ${s.subject}` : ""}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3 text-xs tabular-nums">
+                  <span className="text-muted-foreground"><span className="font-semibold text-foreground">{s.leads}</span> leads</span>
+                  <span className="text-teal-600 dark:text-teal-400"><span className="font-semibold">{s.openRate}%</span> open</span>
+                  <span className="text-emerald-600 dark:text-emerald-400"><span className="font-semibold">{s.replyRate}%</span> reply</span>
+                </div>
+              </div>
+              <div className="h-4 rounded-md bg-muted overflow-hidden" title={`${s.leads} leads · ${s.sent} sent · ${s.opened} opened · ${s.replied} replied`}>
+                <div className="h-full bg-primary/80 rounded-md transition-all" style={{ width: `${(s.leads / maxLeads) * 100}%` }} />
+              </div>
+            </div>
+          );
+        })}
+        {steps.length === 0 && (
+          <div className="text-sm text-muted-foreground py-6 text-center border border-dashed border-border rounded-lg">
+            No sequence steps yet. Add steps and enroll leads to see per-step performance.
+          </div>
+        )}
+      </div>
+      {unattributed > 0 && (
+        <p className="text-xs text-muted-foreground mt-3">
+          {unattributed} earlier message{unattributed === 1 ? "" : "s"} aren't attributed to a step (sent before step tracking) and are excluded here.
+        </p>
+      )}
+    </Card>
+  );
+}
 
 function ChannelPills({ channels }: { channels: string[] }) {
   return (
@@ -109,6 +176,10 @@ function CampaignDetail({ id, onBack }: { id: number; onBack: () => void }) {
   const { data: stats } = useQuery<{ sent: number; queued: number; failed: number; opened: number; replied: number; uniqueLeads: number; total: number; openRate: number; replyRate: number }>({
     queryKey: ["/api/campaigns", id, "stats"],
     queryFn: async () => { const r = await fetch(`/api/campaigns/${id}/stats`); return r.json(); },
+  });
+  const { data: stepStats } = useQuery<{ steps: StepStat[]; unattributed: number; totalLeads: number }>({
+    queryKey: ["/api/campaigns", id, "step-stats"],
+    queryFn: async () => { const r = await fetch(`/api/campaigns/${id}/step-stats`); return r.json(); },
   });
   const { data: allLeads = [] } = useQuery<any[]>({ queryKey: ["/api/leads"] });
   const [previewLang, setPreviewLang] = useState<string>("en");
@@ -265,6 +336,11 @@ function CampaignDetail({ id, onBack }: { id: number; onBack: () => void }) {
             </div>
           ))}
         </div>
+      )}
+
+      {/* Per-step performance (F3) */}
+      {stepStats && stepStats.steps.length > 0 && (
+        <StepPerformance steps={stepStats.steps} unattributed={stepStats.unattributed} />
       )}
 
       {/* Sequence */}

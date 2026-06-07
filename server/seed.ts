@@ -111,22 +111,45 @@ export async function runSeed() {
 
   // Steps for US Mid-Market campaign (index 0) — with personalization tokens
   const us = createdCampaigns[0];
-  await storage.createStep({ campaignId: us.id, stepOrder: 1, channel: "email", delayDays: 0, subject: "Quick idea for {{company}}", body: "Hi {{firstName}},\n\nI noticed {{company}} is growing in the {{industry}} space. We help {{companySize}}-employee teams like yours find and close more qualified deals.\n\nWorth a 15-minute call this week?\n\nBest,\nGlobalReach", translations: "{}" } as any);
-  await storage.createStep({ campaignId: us.id, stepOrder: 2, channel: "email", delayDays: 3, subject: "Following up — {{company}}", body: "Hi {{firstName}},\n\nJust following up on my note. Happy to share how other {{industry}} teams in {{city}} are using GlobalReach to double their pipeline.\n\nWorth a quick chat?", translations: "{}" } as any);
-  await storage.createStep({ campaignId: us.id, stepOrder: 3, channel: "call", delayDays: 7, subject: null, body: "Hi {{firstName}}, this is [Your Name] from GlobalReach. I sent you a couple of emails about helping {{company}} close more deals. Do you have 2 minutes?", translations: "{}" } as any);
+  const usStep1 = await storage.createStep({ campaignId: us.id, stepOrder: 1, channel: "email", delayDays: 0, subject: "Quick idea for {{company}}", body: "Hi {{firstName}},\n\nI noticed {{company}} is growing in the {{industry}} space. We help {{companySize}}-employee teams like yours find and close more qualified deals.\n\nWorth a 15-minute call this week?\n\nBest,\nGlobalReach", translations: "{}" } as any);
+  const usStep2 = await storage.createStep({ campaignId: us.id, stepOrder: 2, channel: "email", delayDays: 3, subject: "Following up — {{company}}", body: "Hi {{firstName}},\n\nJust following up on my note. Happy to share how other {{industry}} teams in {{city}} are using GlobalReach to double their pipeline.\n\nWorth a quick chat?", translations: "{}" } as any);
+  const usStep3 = await storage.createStep({ campaignId: us.id, stepOrder: 3, channel: "call", delayDays: 7, subject: null, body: "Hi {{firstName}}, this is [Your Name] from GlobalReach. I sent you a couple of emails about helping {{company}} close more deals. Do you have 2 minutes?", translations: "{}" } as any);
 
   // Steps for EMEA campaign (index 1)
   const emea = createdCampaigns[1];
+  let emeaStep1: any = null;
   if (emea) {
-    await storage.createStep({ campaignId: emea.id, stepOrder: 1, channel: "email", delayDays: 0, subject: "Quick idea for {{company}}", body: "Hi {{firstName}}, I noticed {{company}} is scaling across {{country}}. We help teams like yours cut procurement cycle time by 30%. Worth a 15-min chat?", translations: JSON.stringify({ de: { subject: "Kurze Idee für {{company}}", body: "Hallo {{firstName}}, mir ist aufgefallen, dass {{company}} in {{country}} wächst. Wir helfen Teams wie Ihrem, die Beschaffungszeit um 30 % zu verkürzen. Lohnt sich ein 15-minütiges Gespräch?" }, es: { subject: "Una idea rápida para {{company}}", body: "Hola {{firstName}}, vi que {{company}} está creciendo en {{country}}. Ayudamos a equipos como el suyo a reducir el ciclo de compras en un 30%. ¿Vale una charla de 15 minutos?" }, fr: { subject: "Une idée rapide pour {{company}}", body: "Bonjour {{firstName}}, j'ai remarqué que {{company}} se développe en {{country}}. Nous aidons les équipes comme la vôtre à réduire le cycle d'achat de 30 %. Un échange de 15 minutes ?" }, it: { subject: "Un'idea veloce per {{company}}", body: "Ciao {{firstName}}, ho notato che {{company}} sta crescendo in {{country}}. Aiutiamo team come il vostro a ridurre del 30% i tempi di approvvigionamento. Vale una chiacchierata di 15 minuti?" } }) } as any);
+    emeaStep1 = await storage.createStep({ campaignId: emea.id, stepOrder: 1, channel: "email", delayDays: 0, subject: "Quick idea for {{company}}", body: "Hi {{firstName}}, I noticed {{company}} is scaling across {{country}}. We help teams like yours cut procurement cycle time by 30%. Worth a 15-min chat?", translations: JSON.stringify({ de: { subject: "Kurze Idee für {{company}}", body: "Hallo {{firstName}}, mir ist aufgefallen, dass {{company}} in {{country}} wächst. Wir helfen Teams wie Ihrem, die Beschaffungszeit um 30 % zu verkürzen. Lohnt sich ein 15-minütiges Gespräch?" }, es: { subject: "Una idea rápida para {{company}}", body: "Hola {{firstName}}, vi que {{company}} está creciendo en {{country}}. Ayudamos a equipos como el suyo a reducir el ciclo de compras en un 30%. ¿Vale una charla de 15 minutos?" }, fr: { subject: "Une idée rapide pour {{company}}", body: "Bonjour {{firstName}}, j'ai remarqué que {{company}} se développe en {{country}}. Nous aidons les équipes comme la vôtre à réduire le cycle d'achat de 30 %. Un échange de 15 minutes ?" }, it: { subject: "Un'idea veloce per {{company}}", body: "Ciao {{firstName}}, ho notato che {{company}} sta crescendo in {{country}}. Aiutiamo team come il vostro a ridurre del 30% i tempi di approvvigionamento. Vale una chiacchierata di 15 minuti?" } }) } as any);
     await storage.createStep({ campaignId: emea.id, stepOrder: 2, channel: "linkedin", delayDays: 3, subject: null, body: "Hi {{firstName}}, following up on my note — happy to share how peers in {{country}} approached this.", translations: JSON.stringify({ de: { body: "Hallo {{firstName}}, kurze Erinnerung an meine Nachricht — ich teile gerne, wie andere in {{country}} das angegangen sind." }, es: { body: "Hola {{firstName}}, siguiendo mi mensaje — encantado de compartir cómo lo abordaron otros en {{country}}." } }) } as any);
   }
+
+  // Seed step-attributed messages for the US campaign so per-step analytics (F3)
+  // has data out of the box. Models a realistic funnel: every enrolled lead got
+  // step 1, fewer progressed to step 2, fewer still to the step-3 call.
+  const usLeads = createdLeads.filter((l: any) => l.country === "United States").slice(0, 8);
+  usLeads.forEach((lead: any, i: number) => {
+    // Step 1 (email) — everyone. Spread of outcomes: replied / opened / sent.
+    const s1status = i === 0 ? "replied" : i < 4 ? "opened" : "sent";
+    storage.createMessage({ leadId: lead.id, campaignId: us.id, stepId: usStep1.id, channel: "email", direction: "outbound", language: "en", subject: `Quick idea for ${lead.company}`, body: `Hi ${lead.fullName.split(" ")[0]}, I noticed ${lead.company} is growing...`, scheduledFor: now(), localSendTime: "9:00 AM", status: s1status, createdAt: now() } as any);
+    if (s1status === "replied") {
+      storage.createMessage({ leadId: lead.id, campaignId: us.id, stepId: usStep1.id, channel: "email", direction: "inbound", language: "en", subject: `Re: Quick idea for ${lead.company}`, body: "Sounds interesting — can we talk next week?", scheduledFor: null, localSendTime: null, status: "replied", createdAt: now() } as any);
+    }
+    // Step 2 (email) — first 5 leads progressed.
+    if (i < 5) {
+      const s2status = i === 1 ? "opened" : "sent";
+      storage.createMessage({ leadId: lead.id, campaignId: us.id, stepId: usStep2.id, channel: "email", direction: "outbound", language: "en", subject: `Following up — ${lead.company}`, body: `Hi ${lead.fullName.split(" ")[0]}, just following up...`, scheduledFor: now(), localSendTime: "9:00 AM", status: s2status, createdAt: now() } as any);
+    }
+    // Step 3 (call) — first 2 leads reached the call step.
+    if (i < 2) {
+      storage.createMessage({ leadId: lead.id, campaignId: us.id, stepId: usStep3.id, channel: "call", direction: "outbound", language: "en", subject: null, body: "Call: followed up on emails.", scheduledFor: now(), localSendTime: "2:00 PM", status: "sent", createdAt: now() } as any);
+    }
+  });
 
   // Seed inbox messages
   const lukas = createdLeads.find((l: any) => l.fullName === "Lukas Schneider");
   if (lukas && emea) {
-    await storage.createMessage({ leadId: lukas.id, campaignId: emea.id, channel: "email", direction: "outbound", language: "de", subject: "Kurze Idee für Rheinwerk GmbH", body: "Hallo Lukas, mir ist aufgefallen, dass Rheinwerk in Deutschland wächst...", scheduledFor: now(), localSendTime: "9:12 AM CEST", status: "opened", createdAt: now() } as any);
-    await storage.createMessage({ leadId: lukas.id, campaignId: emea.id, channel: "email", direction: "inbound", language: "de", subject: "Re: Kurze Idee für Rheinwerk GmbH", body: "Hallo, klingt interessant. Können wir nächste Woche sprechen?", scheduledFor: null, localSendTime: null, status: "replied", createdAt: now() } as any);
+    await storage.createMessage({ leadId: lukas.id, campaignId: emea.id, stepId: emeaStep1?.id, channel: "email", direction: "outbound", language: "de", subject: "Kurze Idee für Rheinwerk GmbH", body: "Hallo Lukas, mir ist aufgefallen, dass Rheinwerk in Deutschland wächst...", scheduledFor: now(), localSendTime: "9:12 AM CEST", status: "opened", createdAt: now() } as any);
+    await storage.createMessage({ leadId: lukas.id, campaignId: emea.id, stepId: emeaStep1?.id, channel: "email", direction: "inbound", language: "de", subject: "Re: Kurze Idee für Rheinwerk GmbH", body: "Hallo, klingt interessant. Können wir nächste Woche sprechen?", scheduledFor: null, localSendTime: null, status: "replied", createdAt: now() } as any);
   }
   const jordan = createdLeads.find((l: any) => l.fullName === "Jordan Mitchell");
   if (jordan) {

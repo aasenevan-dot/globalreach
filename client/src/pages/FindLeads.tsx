@@ -10,7 +10,7 @@ import { SavedFilterMenu, type FilterConfig } from "@/components/SavedFilterMenu
 import { MultiSelectFilter, SelectedBadges } from "@/components/AdvancedFilterPanel";
 import {
   Search, Download, UserPlus, CheckCircle2, XCircle, ChevronLeft,
-  ChevronRight, Filter, Zap, ShieldCheck, Globe, Building2, Users,
+  ChevronRight, ChevronDown, Filter, Zap, ShieldCheck, Globe, Building2, Users,
 } from "lucide-react";
 
 interface FinderLead {
@@ -83,6 +83,9 @@ export default function FindLeads() {
   const [filterOperator, setFilterOperator] = useState<"AND" | "OR">("AND");
   const [page, setPage] = useState(1);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Mobile: the filter row is wide enough to push content off screen, so it's
+  // collapsed by default on small screens behind a toggle (always shown on lg+).
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   // Legacy single-select state (kept for backward compatibility if needed)
   const [industry, setIndustry] = useState("all");
@@ -254,6 +257,13 @@ export default function FindLeads() {
     countries.length > 0 ||
     verifiedOnly;
 
+  const activeFilterCount =
+    industries.length +
+    titleLevels.length +
+    companySizes.length +
+    countries.length +
+    (verifiedOnly ? 1 : 0);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -294,6 +304,26 @@ export default function FindLeads() {
           />
         </div>
 
+        {/* Mobile-only toggle: the filter row overflows on phones, so hide it
+            behind a button on small screens. Always visible on lg+. */}
+        <button
+          type="button"
+          onClick={() => setFiltersOpen((o) => !o)}
+          className="lg:hidden flex items-center justify-between w-full text-sm font-medium px-3 py-2 rounded-lg border border-border hover:bg-muted/50 transition-colors"
+          aria-expanded={filtersOpen}
+        >
+          <span className="flex items-center gap-2">
+            <Filter className="h-4 w-4" />
+            Filters
+            {activeFilterCount > 0 && (
+              <Badge variant="secondary" className="text-xs">{activeFilterCount}</Badge>
+            )}
+          </span>
+          <ChevronDown className={`h-4 w-4 transition-transform ${filtersOpen ? "rotate-180" : ""}`} />
+        </button>
+
+        {/* Collapsible filter controls (always open on lg+) */}
+        <div className={`${filtersOpen ? "block" : "hidden"} lg:block space-y-3`}>
         {/* Advanced Multi-Select Filters */}
         <div className="flex flex-wrap gap-2 items-center">
           {meta && (
@@ -418,6 +448,7 @@ export default function FindLeads() {
             </span>
           </div>
         )}
+        </div>
       </div>
 
       {/* Results */}

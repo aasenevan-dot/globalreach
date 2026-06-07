@@ -68,6 +68,7 @@ export async function bulkEnrollLeadsInCampaign(
       const message = await storage.createMessage({
         leadId,
         campaignId,
+        stepId: firstStep.id,
         channel: primaryChannel,
         direction: "outbound",
         language: lead.language,

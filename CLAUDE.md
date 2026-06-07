@@ -131,6 +131,12 @@ shared/
 - **B5:** Form submission sets `convertedLeadId` on form_submission row after auto-creating lead
 - **F14:** `leads.createdAt` added to schema + ALTER migration + Analytics date range filter (7d/30d/90d/all)
 
+### Sprint 5 (June 2026)
+- **F8:** Mobile layout fixes — Pipeline kanban becomes horizontal-scrolling snap lanes on mobile (6-col grid at `lg`); Analytics chart cards get `min-w-0` so recharts `ResponsiveContainer` shrinks instead of overflowing; FindLeads filter row collapses behind a "Filters" toggle on mobile. Also made the AppShell header responsive (ModeToggle/AudienceToggle labels become icon-only below `sm`), which was the real cause of page-level horizontal scroll on every page.
+- **F3:** Per-step campaign analytics — added `messages.stepId` (schema + idempotent `ALTER TABLE messages ADD COLUMN step_id`). Step attribution now set in `bulk-ops` enroll, `routes` `run` + `schedule-all`, and seed. New `GET /api/campaigns/:id/step-stats` returns per-step leads count + sent/open/reply rates; rendered as a "Per-Step Performance" card in CampaignDetail. Seed creates a realistic step funnel (8→5→2) for demo data.
+- **F15:** Export analytics as PNG/PDF — added `html2canvas` + `jspdf` (lazy-imported in `client/src/lib/export-analytics.ts` so they don't bloat the Analytics chunk). "Export" dropdown on both B2B and Consumer analytics views captures the page (respecting dark mode, ignoring the button via `data-export-ignore`).
+- **Build fix:** `script/build.ts` now polyfills `import.meta.url` (banner + define from native `__filename`) so the `import.meta.url`→`__dirname` derivation in `server/static.ts` and `server/storage.ts` works in both `tsx` (ESM dev) and the bundled CJS production build. Previously the CJS bundle had an empty `import.meta.url`, which would crash `fileURLToPath("")` on boot.
+
 ---
 
 ## What still needs to be done
@@ -150,9 +156,9 @@ See `ROADMAP.md` in this repo for the full list. Quick summary:
 
 ### 🟡 Features to build (Claude can build)
 - **F2**: Lead pagination (`/api/leads?page=1&limit=50`) — currently all leads load at once
-- **F3**: Per-step campaign analytics (needs `stepId` added to messages schema)
-- **F8**: Mobile layout fixes (Pipeline kanban, Analytics charts, FindLeads filter panel)
-- **F15**: Export analytics as PNG/PDF
+- ~~**F3**: Per-step campaign analytics~~ ✅ done (Sprint 5)
+- ~~**F8**: Mobile layout fixes~~ ✅ done (Sprint 5)
+- ~~**F15**: Export analytics as PNG/PDF~~ ✅ done (Sprint 5)
 - **IMAP reply detection** (needs your email credentials in Render env vars)
 
 ---

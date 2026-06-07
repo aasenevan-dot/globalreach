@@ -2,6 +2,11 @@ import express from 'express';
 import type { Express } from 'express';
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// ESM (tsx dev) has no __dirname; derive it from import.meta.url. The CJS
+// production bundle polyfills import.meta.url from __filename (see script/build.ts).
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export function serveStatic(app: Express) {
   const distPath = path.resolve(__dirname, "public");

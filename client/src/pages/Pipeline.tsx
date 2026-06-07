@@ -134,7 +134,9 @@ export default function Pipeline() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      {/* Mobile: horizontal-scrolling lanes (the 6-col grid overflows on phones).
+          lg+: the full six-column board. */}
+      <div className="flex gap-4 overflow-x-auto pb-3 -mx-4 px-4 snap-x snap-mandatory lg:grid lg:grid-cols-6 lg:overflow-visible lg:pb-0 lg:mx-0 lg:px-0">
         {STAGES.map((stage) => {
           const items = columns[stage] ?? [];
           const isOver = overStage === stage;
@@ -144,7 +146,7 @@ export default function Pipeline() {
               role="list"
               aria-label={`${STATUS_META[stage]?.label ?? stage} stage — ${items.length} leads`}
               aria-dropeffect={overStage === stage ? "move" : "none"}
-              className={`rounded-lg border transition-colors ${isOver ? "border-primary bg-primary/5" : "border-border bg-muted/20"}`}
+              className={`w-[80%] shrink-0 snap-start sm:w-72 lg:w-auto lg:shrink rounded-lg border transition-colors ${isOver ? "border-primary bg-primary/5" : "border-border bg-muted/20"}`}
               onDragOver={(e) => { e.preventDefault(); setOverStage(stage); }}
               onDragLeave={(e) => { if (e.currentTarget === e.target) setOverStage(null); }}
               onDrop={() => onDrop(stage)}

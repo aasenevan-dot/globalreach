@@ -27,6 +27,11 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "libsql";
 import { eq, inArray } from "drizzle-orm";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+// ESM (tsx dev) has no __dirname; derive it from import.meta.url. The CJS
+// production bundle polyfills import.meta.url from __filename (see script/build.ts).
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Database driver: `libsql` exposes a synchronous, better-sqlite3-compatible API
 // (drop-in for drizzle-orm/better-sqlite3), so the rest of this file is unchanged.
@@ -122,6 +127,7 @@ try {
       id integer PRIMARY KEY AUTOINCREMENT,
       lead_id integer NOT NULL,
       campaign_id integer,
+      step_id integer,
       channel text NOT NULL,
       direction text NOT NULL,
       language text NOT NULL,
@@ -157,6 +163,14 @@ try {
     if (!cols.includes("tags")) sqlite.exec("ALTER TABLE leads ADD COLUMN tags text NOT NULL DEFAULT ''");
     if (!cols.includes("notes")) sqlite.exec("ALTER TABLE leads ADD COLUMN notes text");
     if (!cols.includes("created_at")) sqlite.exec("ALTER TABLE leads ADD COLUMN created_at text");
+  }
+} catch { /* table may not exist yet on first boot */ }
+
+// Forward-migrate messages: per-step campaign analytics need step attribution.
+try {
+  const msgCols = sqlite.prepare("PRAGMA table_info(messages)").all().map((c: any) => c.name);
+  if (msgCols.length && !msgCols.includes("step_id")) {
+    sqlite.exec("ALTER TABLE messages ADD COLUMN step_id integer");
   }
 } catch { /* table may not exist yet on first boot */ }
 

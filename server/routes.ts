@@ -868,6 +868,50 @@ export async function registerRoutes(
     res.json({ sent, queued, failed, opened, replied, uniqueLeads, total: out.length, openRate: sent > 0 ? Math.round((opened / sent) * 100) : 0, replyRate: sent > 0 ? Math.round((replied / sent) * 100) : 0 });
   });
 
+  // ---- Per-step Campaign Stats (F3) ----
+  // Breaks a campaign's performance down by sequence step: how many leads are
+  // sitting on each step plus per-step sent / open / reply rates. Messages are
+  // attributed to a step via messages.step_id; pre-migration messages with a
+  // null step_id are reported separately as "unattributed".
+  app.get("/api/campaigns/:id/step-stats", async (req, res) => {
+    try {
+      const campaignId = Number(req.params.id);
+      const steps = (await storage.getSteps(campaignId)).sort((a, b) => a.stepOrder - b.stepOrder);
+      const msgs = await storage.getMessagesByCampaign(campaignId);
+
+      const SENT_STATUSES = ["sent", "delivered", "opened", "replied"];
+      const inbound = msgs.filter(m => m.direction === "inbound");
+
+      const perStep = steps.map(step => {
+        const stepOut = msgs.filter(m => m.stepId === step.id && m.direction === "outbound");
+        const leads = new Set(stepOut.map(m => m.leadId)).size;
+        const sent = stepOut.filter(m => SENT_STATUSES.includes(m.status)).length;
+        const opened = stepOut.filter(m => m.status === "opened" || m.status === "replied").length;
+        const replied =
+          stepOut.filter(m => m.status === "replied").length +
+          inbound.filter(m => m.stepId === step.id).length;
+        return {
+          stepId: step.id,
+          stepOrder: step.stepOrder,
+          channel: step.channel,
+          subject: step.subject ?? null,
+          delayDays: step.delayDays,
+          leads,
+          sent,
+          opened,
+          replied,
+          openRate: sent > 0 ? Math.round((opened / sent) * 100) : 0,
+          replyRate: sent > 0 ? Math.round((replied / sent) * 100) : 0,
+        };
+      });
+
+      const unattributed = msgs.filter(m => m.direction === "outbound" && m.stepId == null).length;
+      res.json({ steps: perStep, unattributed, totalLeads: new Set(msgs.map(m => m.leadId)).size });
+    } catch (e: any) {
+      res.status(500).json({ error: e.message || "Failed to compute step stats" });
+    }
+  });
+
   // ---- AI Email Draft ----
   app.post("/api/ai/draft", async (req, res) => {
     const { leadId, campaignId } = req.body;
@@ -928,6 +972,7 @@ export async function registerRoutes(
           await storage.createMessage({
             leadId: lead.id,
             campaignId: campaign.id,
+            stepId: step.id,
             channel: step.channel,
             direction: "outbound",
             language: lead.language,
@@ -1003,7 +1048,7 @@ export async function registerRoutes(
         const body = applyTokens(step1.body, lead);
         let html = buildHtml(subject, body, firstName);
         // Create message first to get ID for tracking pixel
-        const msg = await storage.createMessage({ leadId: lead.id, campaignId: campaign.id, channel: "email", direction: "outbound", language: lead.language, subject, body, status: "scheduled", createdAt: timestamp });
+        const msg = await storage.createMessage({ leadId: lead.id, campaignId: campaign.id, stepId: step1.id, channel: "email", direction: "outbound", language: lead.language, subject, body, status: "scheduled", createdAt: timestamp });
         // Inject tracking pixel
         html = html.replace("</body>", `<img src="${process.env.BASE_URL || 'http://localhost:' + (process.env.PORT || '5000')}/api/track/${msg.id}.png" width="1" height="1" style="display:none" /></body>`);
         const result = await sendEmail(emailCfg, lead.email, subject, html);
@@ -1015,7 +1060,7 @@ export async function registerRoutes(
       for (const lead of eligible) {
         const subject = applyTokens(step1.subject || campaign.name, lead);
         const body = applyTokens(step1.body, lead);
-        await storage.createMessage({ leadId: lead.id, campaignId: campaign.id, channel: "email", direction: "outbound", language: lead.language, subject, body, status: "scheduled", createdAt: timestamp });
+        await storage.createMessage({ leadId: lead.id, campaignId: campaign.id, stepId: step1.id, channel: "email", direction: "outbound", language: lead.language, subject, body, status: "scheduled", createdAt: timestamp });
         queued++;
       }
     }

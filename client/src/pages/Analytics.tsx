@@ -1,7 +1,13 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useMode } from "@/lib/mode";
 import { useAudience } from "@/lib/audience";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useToast } from "@/hooks/use-toast";
+import { exportAsPNG, exportAsPDF } from "@/lib/export-analytics";
 import type { Lead, Campaign, Message, Job, Form, Funnel, Automation } from "@shared/schema";
 import {
   COUNTRY_FLAG, flagForLang, langName, CHANNELS, STATUS_META, localTimeIn, formatUSD,
@@ -14,6 +20,7 @@ import {
   TrendingUp, Globe, Languages, Send, Reply, Target, Mail, Phone,
   Smartphone, MessageCircle, Linkedin, Clock, Handshake, DollarSign, Trophy,
   HardHat, Home, CheckCircle2, Wallet, FileText, Layers, GitBranch, MousePointerClick,
+  Download, FileImage, Loader2,
 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, Cell, PieChart, Pie, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
@@ -23,6 +30,48 @@ const CHANNEL_ICONS: Record<string, any> = {
 
 // The five funnel stages in order (Lost is tracked separately).
 const FUNNEL = ["new", "contacted", "engaged", "meeting", "won"];
+
+// Export button (F15): captures the referenced analytics container as a shareable
+// PNG or PDF via html2canvas. The button is marked data-export-ignore so it
+// doesn't appear in the captured image.
+function ExportMenu({ targetRef, filename }: { targetRef: React.RefObject<HTMLDivElement>; filename: string }) {
+  const { toast } = useToast();
+  const [busy, setBusy] = useState(false);
+
+  async function run(format: "png" | "pdf") {
+    const el = targetRef.current;
+    if (!el) return;
+    setBusy(true);
+    try {
+      if (format === "png") await exportAsPNG(el, filename);
+      else await exportAsPDF(el, filename);
+      toast({ title: `Exported as ${format.toUpperCase()}`, description: "Saved to your downloads." });
+    } catch (e: any) {
+      toast({ title: "Export failed", description: e?.message ?? "Something went wrong.", variant: "destructive" });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" size="sm" className="gap-2" disabled={busy} data-export-ignore data-testid="button-export-analytics">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+          {busy ? "Exporting…" : "Export"}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" data-export-ignore>
+        <DropdownMenuItem onClick={() => run("png")} className="gap-2">
+          <FileImage className="h-4 w-4" /> Download PNG
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => run("pdf")} className="gap-2">
+          <FileText className="h-4 w-4" /> Download PDF
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 function Stat({ icon: Icon, label, value, hint }: { icon: any; label: string; value: string | number; hint?: string }) {
   return (
@@ -40,6 +89,7 @@ export default function Analytics() {
   const { isInternational } = useMode();
   const { isConsumer } = useAudience();
   const [dateRange, setDateRange] = useState<"7d" | "30d" | "90d" | "all">("all");
+  const exportRef = useRef<HTMLDivElement>(null);
   const { data: leads, isLoading, error } = useQuery<Lead[]>({ queryKey: ["/api/leads"] });
   const { data: campaigns } = useQuery<Campaign[]>({ queryKey: ["/api/campaigns"] });
   const { data: messages } = useQuery<Message[]>({ queryKey: ["/api/messages"] });
@@ -194,16 +244,19 @@ export default function Analytics() {
     .slice(0, 5);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-display font-bold tracking-tight">
-          {isInternational ? "Global Analytics" : "Analytics"}
-        </h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          {isInternational
-            ? "Performance across every market, language and channel."
-            : "How your domestic outreach is performing."}
-        </p>
+    <div ref={exportRef} className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-display font-bold tracking-tight">
+            {isInternational ? "Global Analytics" : "Analytics"}
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {isInternational
+              ? "Performance across every market, language and channel."
+              : "How your domestic outreach is performing."}
+          </p>
+        </div>
+        <ExportMenu targetRef={exportRef} filename={isInternational ? "global-analytics" : "analytics"} />
       </div>
 
       {/* Date range filter */}
@@ -471,7 +524,7 @@ export default function Analytics() {
         <div className="grid lg:grid-cols-2 gap-6">
 
           {/* Chart 1: Pipeline Funnel */}
-          <Card>
+          <Card className="min-w-0">
             <CardHeader className="pb-2">
               <h3 className="font-display font-semibold text-sm">Pipeline Funnel</h3>
             </CardHeader>
@@ -496,7 +549,7 @@ export default function Analytics() {
           </Card>
 
           {/* Chart 2: Deal Value by Industry */}
-          <Card>
+          <Card className="min-w-0">
             <CardHeader className="pb-2">
               <h3 className="font-display font-semibold text-sm">Deal Value by Industry</h3>
             </CardHeader>
@@ -521,7 +574,7 @@ export default function Analytics() {
           </Card>
 
           {/* Chart 3: Channel Mix PieChart */}
-          <Card>
+          <Card className="min-w-0">
             <CardHeader className="pb-2">
               <h3 className="font-display font-semibold text-sm">Channel Mix</h3>
             </CardHeader>
@@ -545,7 +598,7 @@ export default function Analytics() {
           </Card>
 
           {/* Chart 4: Lead Sources */}
-          <Card>
+          <Card className="min-w-0">
             <CardHeader className="pb-2">
               <h3 className="font-display font-semibold text-sm">Lead Sources</h3>
             </CardHeader>
@@ -581,6 +634,7 @@ export default function Analytics() {
 // marketer sees which referral relationships actually drive paid jobs.
 // ---------------------------------------------------------------------------
 function ConsumerAnalytics({ jobs }: { jobs: Job[] }) {
+  const exportRef = useRef<HTMLDivElement>(null);
   const completed = jobs.filter((j) => j.stage === "completed");
   const lost = jobs.filter((j) => j.stage === "lost");
   const open = jobs.filter((j) => j.stage !== "completed" && j.stage !== "lost");
@@ -624,12 +678,15 @@ function ConsumerAnalytics({ jobs }: { jobs: Job[] }) {
   const maxRoof = Math.max(...roofTypes.map((r) => r.count), 1);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-display font-bold tracking-tight">Consumer Analytics</h1>
-        <p className="text-muted-foreground text-sm mt-1">
-          How your direct-to-homeowner jobs are performing — and which referral sources actually pay off.
-        </p>
+    <div ref={exportRef} className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-display font-bold tracking-tight">Consumer Analytics</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            How your direct-to-homeowner jobs are performing — and which referral sources actually pay off.
+          </p>
+        </div>
+        <ExportMenu targetRef={exportRef} filename="consumer-analytics" />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

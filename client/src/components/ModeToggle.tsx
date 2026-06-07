@@ -24,7 +24,7 @@ export function ModeToggle() {
         }`}
       >
         <Home className="h-3.5 w-3.5" />
-        Local
+        <span className="hidden sm:inline">Local</span>
       </button>
       <button
         onClick={() => setMode("international")}
@@ -38,7 +38,7 @@ export function ModeToggle() {
         }`}
       >
         <Globe className="h-3.5 w-3.5" />
-        International
+        <span className="hidden sm:inline">International</span>
       </button>
     </div>
   );

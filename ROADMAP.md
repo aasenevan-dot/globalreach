@@ -131,10 +131,11 @@ The automation engine already has the action execution code — just needs trigg
 The `/api/leads` endpoint returns ALL leads. At 500+ leads, this causes slow loads and
 memory pressure. Add `?page=1&limit=50` pagination on both the API and the Leads page table.
 
-### F3. Campaign analytics per step
-The campaign detail page shows overall sent/opened/replied counts. It should show
+### F3. Campaign analytics per step ✅ DONE (Sprint 5)
+~~The campaign detail page shows overall sent/opened/replied counts. It should show
 per-step performance: how many leads are on step 1 vs. step 2 vs. step 3, and
-open/reply rate per step.
+open/reply rate per step.~~ Shipped: `messages.stepId` + `GET /api/campaigns/:id/step-stats`
++ "Per-Step Performance" card.
 
 ### F4. Dashboard widgets: Top leads to contact today
 Using lead score + last contacted date, show "Top 5 leads to reach today" on the dashboard —
@@ -153,12 +154,14 @@ Add email-based dedup: before inserting, check if a lead with the same email alr
 Currently the search palette shows page shortcuts but doesn't search leads/campaigns by name.
 Add live fuzzy search across leads (by name/company/email) and campaigns (by name).
 
-### F8. Better mobile layout
-Several pages are unusable on mobile:
+### F8. Better mobile layout ✅ DONE (Sprint 5)
+~~Several pages are unusable on mobile:
 - Pipeline (Kanban board overflows horizontally)
 - Analytics (charts are too wide)
-- FindLeads (filter panel pushes content off screen)
-Add a collapsed/stacked mobile layout for each.
+- FindLeads (filter panel pushes content off screen)~~
+Shipped: Pipeline horizontal-scroll snap lanes; Analytics chart cards `min-w-0`;
+FindLeads filter row collapses behind a "Filters" toggle. Also fixed the AppShell
+header (icon-only toggles below `sm`) — the real cause of page-wide horizontal scroll.
 
 ### F9. Activity log in seed data
 When demo data is loaded (POST /api/seed), no activity log entries are created.
@@ -187,9 +190,10 @@ Add an autocomplete dropdown that shows existing tags (from all leads) as sugges
 The analytics page shows all-time data. Add a date range picker (Last 7 days / 30 days /
 90 days / All time) and filter the charts accordingly.
 
-### F15. Export analytics as PDF/PNG
-Add a "Export" button to the Analytics page that captures the charts and stat cards
-as a PDF or PNG for sharing with stakeholders.
+### F15. Export analytics as PDF/PNG ✅ DONE (Sprint 5)
+~~Add a "Export" button to the Analytics page that captures the charts and stat cards
+as a PDF or PNG for sharing with stakeholders.~~ Shipped: html2canvas + jspdf
+(lazy-loaded) behind an "Export" dropdown on both analytics views.
 
 ---
 
@@ -213,6 +217,10 @@ as a PDF or PNG for sharing with stakeholders.
 | Activity log hooked into routes | 0a2121b | lead.created, status.changed, message events |
 | Dashboard recent activity feed | 0a2121b | Auto-refreshing last 10 events |
 | getRecentActivity storage method | (next push) | Clean method, no dynamic import |
+| F8 mobile layouts (Pipeline/Analytics/FindLeads + header) | (Sprint 5) | Scroll lanes, responsive charts, collapsible filters |
+| F3 per-step campaign analytics | (Sprint 5) | `messages.stepId` + step-stats endpoint + card |
+| F15 export analytics PNG/PDF | (Sprint 5) | html2canvas + jspdf, lazy-loaded |
+| CJS `import.meta.url` polyfill in build | (Sprint 5) | Fixes dev/prod `__dirname` derivation |
 
 ---
 

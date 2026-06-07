@@ -25,7 +25,7 @@ export function AudienceToggle() {
         }`}
       >
         <Building2 className="h-3.5 w-3.5" />
-        Business
+        <span className="hidden sm:inline">Business</span>
       </button>
       <button
         onClick={() => setAudience("consumer")}
@@ -39,7 +39,7 @@ export function AudienceToggle() {
         }`}
       >
         <Home className="h-3.5 w-3.5" />
-        Consumer
+        <span className="hidden sm:inline">Consumer</span>
       </button>
     </div>
   );

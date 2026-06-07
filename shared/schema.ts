@@ -111,6 +111,9 @@ export const messages = sqliteTable("messages", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   leadId: integer("lead_id").notNull(),
   campaignId: integer("campaign_id"),
+  // Which sequence step produced this message (null for ad-hoc / legacy messages).
+  // Powers per-step campaign analytics.
+  stepId: integer("step_id"),
   channel: text("channel").notNull(),
   direction: text("direction").notNull(), // outbound | inbound
   language: text("language").notNull(),
