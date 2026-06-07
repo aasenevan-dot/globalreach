@@ -127,9 +127,13 @@ confirmation email is sent to the visitor or the host.
 Fire `lead_created` and `status_changed` triggers when those events happen in routes.ts.
 The automation engine already has the action execution code — just needs trigger evaluation.
 
-### F2. Lead pagination
-The `/api/leads` endpoint returns ALL leads. At 500+ leads, this causes slow loads and
-memory pressure. Add `?page=1&limit=50` pagination on both the API and the Leads page table.
+### F2. Lead pagination ✅ DONE (Sprint 6)
+~~The `/api/leads` endpoint returns ALL leads. At 500+ leads, this causes slow loads and
+memory pressure. Add `?page=1&limit=50` pagination on both the API and the Leads page table.~~
+Shipped: opt-in `?page&limit` (returns full array when omitted, so existing consumers are
+unaffected) with server-side `search`/`country`/`language`/`state`/`status` filtering +
+`GET /api/leads/facets`; Leads list/table view is server-paginated with Prev/numbered/Next
+controls. Also F12: `zodError()` helper surfaces Zod validation details in API responses + toasts.
 
 ### F3. Campaign analytics per step ✅ DONE (Sprint 5)
 ~~The campaign detail page shows overall sent/opened/replied counts. It should show

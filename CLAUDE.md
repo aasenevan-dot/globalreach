@@ -137,6 +137,10 @@ shared/
 - **F15:** Export analytics as PNG/PDF — added `html2canvas` + `jspdf` (lazy-imported in `client/src/lib/export-analytics.ts` so they don't bloat the Analytics chunk). "Export" dropdown on both B2B and Consumer analytics views captures the page (respecting dark mode, ignoring the button via `data-export-ignore`).
 - **Build fix:** `script/build.ts` now polyfills `import.meta.url` (banner + define from native `__filename`) so the `import.meta.url`→`__dirname` derivation in `server/static.ts` and `server/storage.ts` works in both `tsx` (ESM dev) and the bundled CJS production build. Previously the CJS bundle had an empty `import.meta.url`, which would crash `fileURLToPath("")` on boot.
 
+### Sprint 6 (June 2026)
+- **F2:** Lead pagination — `GET /api/leads` is now OPT-IN paginated: no `page`/`limit` params → full array as before (all the other consumers depend on this); with them → `{ data, page, limit, total, totalPages }`. Paginated mode also does server-side filtering via `search`/`country`/`language`/`state`/`status`. New `storage.getLeadsPage()` (SQL `LIMIT`/`OFFSET` + `COUNT`) and `storage.getLeadFacets()` + `GET /api/leads/facets` (distinct values for the filter dropdowns without downloading every row). Leads page **list/table view** is server-paginated with Prev / numbered / Next controls (debounced search resets to page 1; selection persists across pages for bulk ops). Territory & Map views still load the full set on demand; CSV export pulls the full filtered set so it's not capped to one page.
+- **F12:** Better API error messages — `server/lib/http-errors.ts` `zodError()`/`zodMessage()` turn `error.flatten()` into a human-readable `error` string plus structured `fieldErrors`/`formErrors`. All ~30 `parsed.error.flatten()` responses in `routes.ts` now use it; bulk-import per-row errors use `zodMessage()`. Client `throwIfResNotOk()` parses the JSON body and surfaces the server's `error`/`message` so toasts show what actually went wrong (wired `AddLeadDialog`/`EditLeadDialog` `onError`).
+
 ---
 
 ## What still needs to be done
@@ -155,7 +159,7 @@ See `ROADMAP.md` in this repo for the full list. Quick summary:
 - **B8**: Calendar booking page creates meeting but sends no confirmation email
 
 ### 🟡 Features to build (Claude can build)
-- **F2**: Lead pagination (`/api/leads?page=1&limit=50`) — currently all leads load at once
+- ~~**F2**: Lead pagination (`/api/leads?page=1&limit=50`)~~ ✅ done (Sprint 6)
 - ~~**F3**: Per-step campaign analytics~~ ✅ done (Sprint 5)
 - ~~**F8**: Mobile layout fixes~~ ✅ done (Sprint 5)
 - ~~**F15**: Export analytics as PNG/PDF~~ ✅ done (Sprint 5)
