@@ -15,7 +15,9 @@ export function Logo({
   variant?: "gradient" | "current";
 }) {
   // Unique per instance so multiple logos on a page don't share/clip a <defs> id.
-  const gid = useId();
+  // Strip the colons React's useId() emits — they're invalid in url(#…) refs
+  // and break the gradient in Firefox/Safari.
+  const gid = `gr-globe-${useId().replace(/:/g, "")}`;
   const stroke = variant === "gradient" ? `url(#${gid})` : "currentColor";
 
   return (
