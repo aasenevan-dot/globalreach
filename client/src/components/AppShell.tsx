@@ -6,6 +6,7 @@ import { useAudience } from "@/lib/audience";
 import { useTheme } from "@/lib/theme";
 import { ModeToggle } from "./ModeToggle";
 import { AudienceToggle } from "./AudienceToggle";
+import { Logo } from "./Logo";
 import { Button } from "@/components/ui/button";
 import type { Message, Automation } from "@shared/schema";
 import {
@@ -182,8 +183,8 @@ export function AppShell({ children, onOpenSearch }: { children: React.ReactNode
             <Button variant="ghost" size="icon" data-testid="button-theme-toggle" onClick={toggleTheme} aria-label="Toggle theme" className="h-8 w-8">
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </Button>
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center text-xs font-bold text-white shrink-0" title="User profile">
-              GR
+            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-red-500 to-teal-500 flex items-center justify-center text-white shrink-0" title="User profile">
+              <Logo variant="current" className="h-5 w-5" />
             </div>
           </div>
         </header>
